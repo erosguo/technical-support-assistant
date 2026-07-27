@@ -1,6 +1,7 @@
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models.knowledge import KnowledgeDocument
+from app.services.rag import index_document, search_chunks
+from app.services.llm import LLMRouter
 
 
 def create_document(
@@ -8,6 +9,7 @@ def create_document(
     title: str,
     content: str,
     doc_type: str = "markdown",
+    llm: LLMRouter = None,
 ) -> KnowledgeDocument:
     doc = KnowledgeDocument(
         title=title,
@@ -17,16 +19,17 @@ def create_document(
     session.add(doc)
     session.commit()
     session.refresh(doc)
+
+    if llm is not None:
+        index_document(session=session, llm=llm, doc=doc)
+
     return doc
 
 
 def search_knowledge(
     session: Session,
+    llm: LLMRouter,
     query: str,
     top_k: int = 5,
 ) -> list[dict]:
-    result = session.execute(select(KnowledgeDocument).limit(top_k))
-    return [
-        {"id": str(doc.id), "title": doc.title, "content": doc.content[:200]}
-        for doc in result.scalars().all()
-    ]
+    return search_chunks(session=session, llm=llm, query=query, top_k=top_k)

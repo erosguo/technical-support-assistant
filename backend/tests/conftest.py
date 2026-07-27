@@ -1,13 +1,24 @@
 """Core test fixtures. Uses sync SQLAlchemy with SQLite for test isolation."""
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from app.db.base import Base
 from tests.mock_providers import MockLLMProvider
 
 TEST_DB_DSN = "sqlite:///./test.db"
-test_engine = create_engine(TEST_DB_DSN, echo=False)
+test_engine = create_engine(
+    TEST_DB_DSN, echo=False, connect_args={"check_same_thread": False}
+)
+
+
+@event.listens_for(test_engine, "connect")
+def _enable_fk(dbapi_connection, _connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON")
+    cursor.close()
+
+
 TestSessionLocal = sessionmaker(bind=test_engine)
 
 

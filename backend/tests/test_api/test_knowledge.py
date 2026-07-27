@@ -1,5 +1,7 @@
 import asyncio
+from unittest.mock import patch
 from httpx import AsyncClient
+from app.models.knowledge import DocumentChunk
 
 
 class TestKnowledgeAPI:
@@ -62,5 +64,49 @@ class TestKnowledgeAPI:
             assert resp.status_code == 200
             get_resp = await client.get(f"/api/v1/knowledge/documents/{doc_id}")
             assert get_resp.status_code == 404
+
+        asyncio.run(run())
+
+    def test_search_endpoint_with_citations(
+        self, client: AsyncClient, db_session, mock_llm
+    ):
+        async def run():
+            create_resp = await client.post(
+                "/api/v1/knowledge/documents",
+                data={"title": "SSL Guide"},
+                files={
+                    "file": (
+                        "ssl.md",
+                        b"CSR generation is the first step to configure SSL",
+                        "text/markdown",
+                    )
+                },
+            )
+            doc_id = create_resp.json()["id"]
+            chunk = DocumentChunk(
+                document_id=doc_id,
+                content="CSR generation is the first step to configure SSL",
+                chunk_index=0,
+                embedding=[0.1, 0.2, 0.3],
+            )
+            db_session.add(chunk)
+            db_session.commit()
+
+            with (
+                patch("app.api.v1.knowledge.LLMRouter", return_value=mock_llm),
+                patch("app.api.v1.knowledge.settings.llm_api_key", "test-key"),
+            ):
+                resp = await client.post(
+                    "/api/v1/knowledge/search",
+                    params={"query": "SSL配置", "top_k": 5},
+                )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "results" in data
+            if data["results"]:
+                result = data["results"][0]
+                assert "document_title" in result
+                assert "content" in result
+                assert "score" in result
 
         asyncio.run(run())

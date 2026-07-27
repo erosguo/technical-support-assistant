@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layout, Menu, Button, Input, List, Typography, Empty } from 'antd';
+import { Layout, Menu, Button, Input, List, Typography, Empty, Tag } from 'antd';
 import { PlusOutlined, MessageOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { AppDispatch, RootState } from '../store';
+import type { AppDispatch, RootState, Citation } from '../store';
 import {
   fetchConversations,
   createConversation,
@@ -68,20 +68,35 @@ export default function ChatPage() {
     const reader = resp.body!.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let citations: Citation[] = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       for (const line of decoder.decode(value).split('\n')) {
-        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+        if (line.startsWith('data: ')) {
+          const payload = line.slice(6);
+          if (payload === '[DONE]') continue;
           try {
-            fullText = JSON.parse(line.slice(6)).content;
+            const parsed = JSON.parse(payload);
+            if (parsed.content !== undefined) {
+              fullText = parsed.content;
+            }
+            if (parsed.citations) {
+              citations = parsed.citations;
+            }
           } catch {
             /* ignore parse errors */
           }
         }
       }
     }
-    dispatch(appendMessage({ role: 'assistant', content: fullText }));
+    dispatch(
+      appendMessage({
+        role: 'assistant',
+        content: fullText,
+        sources: citations.length > 0 ? citations : undefined,
+      }),
+    );
     dispatch(setStreaming(false));
     dispatch(fetchConversations());
   };
@@ -132,6 +147,18 @@ export default function ChatPage() {
                     >
                       {msg.content}
                     </div>
+                    {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {msg.sources.map((s, i) => (
+                          <Tag key={i} color="blue" title={s.excerpt}>
+                            {s.document_title}
+                            <Text style={{ fontSize: 11, marginLeft: 4, color: '#999' }}>
+                              ({(s.score * 100).toFixed(0)}%)
+                            </Text>
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </List.Item>
               )}

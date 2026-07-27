@@ -3,12 +3,20 @@ import axios from 'axios';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
+export interface Citation {
+  document_id: string;
+  document_title: string;
+  chunk_index: number;
+  score: number;
+  excerpt: string;
+}
+
 export interface Message {
   id: string;
   role: string;
   content: string;
   agent_name?: string;
-  sources?: unknown[];
+  sources?: Citation[];
   created_at: string;
 }
 
@@ -66,11 +74,15 @@ const slice = createSlice({
     setCurrentId(state, action: PayloadAction<string>) {
       state.currentId = action.payload;
     },
-    appendMessage(state, action: PayloadAction<{ role: string; content: string }>) {
+    appendMessage(
+      state,
+      action: PayloadAction<{ role: string; content: string; sources?: Citation[] }>,
+    ) {
       state.messages.push({
         id: Date.now().toString(),
         role: action.payload.role,
         content: action.payload.content,
+        sources: action.payload.sources,
         created_at: new Date().toISOString(),
       });
     },

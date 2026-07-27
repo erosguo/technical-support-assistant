@@ -24,14 +24,16 @@
 
 ### ✨ 核心特性
 
-| 特性                 | 说明                                            |
-| -------------------- | ----------------------------------------------- |
-| 🔍 **智能知识检索**  | 基于 RAG 的知识库问答，支持向量检索和引用溯源   |
-| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到对应子 Agent |
-| 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应                |
-| 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索                |
-| 🏥 **健康检查**      | API 健康监控，快速定位服务状态                  |
-| 🧪 **TDD 驱动**      | 完整的测试套件，37 个测试全部通过               |
+| 特性                 | 说明                                                          |
+| -------------------- | ------------------------------------------------------------- |
+| 🔍 **智能知识检索**  | 基于 RAG 的知识库问答，支持向量检索、余弦相似度匹配和引用溯源 |
+| 📝 **文本分块**      | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
+| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到知识问答或通用对话子 Agent |
+| 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
+| 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
+| 🖥️ **React 前端**    | 完整的聊天界面，支持会话列表、消息展示、引用标签、流式加载    |
+| 🏥 **健康检查**      | API 健康监控，快速定位服务状态                                |
+| 🧪 **TDD 驱动**      | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
 
 ### 🏗️ 技术架构
 
@@ -400,14 +402,16 @@ LLM_BASE_URL=https://api.openai.com/v1
 
 ### ✨ Key Features
 
-| Feature                                | Description                                                     |
-| -------------------------------------- | --------------------------------------------------------------- |
-| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search and citation tracking          |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent intelligently routes user intent to sub-agents |
-| 💬 **SSE Streaming Chat**              | Server-Sent Events for real-time streaming responses            |
-| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization and search             |
-| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics             |
-| 🧪 **TDD-Driven**                      | Complete test suite with 37 tests passing                       |
+| Feature                                | Description                                                       |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations |
+| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap   |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or general agents     |
+| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display        |
+| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD           |
+| 🖥️ **React Frontend**                  | Complete chat interface with conversation list and citations      |
+| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics               |
+| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services           |
 
 ### 🏗️ Architecture
 

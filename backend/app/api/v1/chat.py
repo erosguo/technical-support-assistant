@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_session
 from app.models.conversation import Conversation, Message
 from app.agents.supervisor import build_supervisor_graph
+from app.core.config import settings
 from app.services.knowledge import search_knowledge
+from app.services.llm import LLMRouter
 
 router = APIRouter()
 
@@ -97,30 +99,39 @@ def chat_completion(req: dict, session: Session = Depends(get_session)):
     session.add(user_msg)
     session.commit()
 
-    ctx = search_knowledge(session, content)
+    ctx = (
+        search_knowledge(session=session, llm=LLMRouter(), query=content)
+        if settings.llm_api_key
+        else []
+    )
     graph = build_supervisor_graph()
     state = {
         "messages": [{"role": "user", "content": content}],
         "user_intent": "",
         "sub_agent_outputs": {},
-        "knowledge_context": [c["content"] for c in ctx],
+        "knowledge_context": ctx,
         "error_info": "",
     }
 
     async def run_agent():
         full_content = ""
+        citations = []
         async for chunk in graph.astream(state):
             for node_output in chunk.values():
                 msgs = node_output.get("messages", [])
                 for msg in msgs:
                     if msg["role"] == "assistant":
                         full_content = msg["content"]
-        return full_content
+                citations = node_output.get("citations", [])
+        return full_content, citations
 
-    full_content = asyncio.run(run_agent())
+    full_content, citations = asyncio.run(run_agent())
+    sources = citations or ctx
 
     def event_stream():
-        yield f"data: {json.dumps({'content': full_content, 'conversation_id': str(conv_id), 'sources': ctx})}\n\n"
+        yield f"data: {json.dumps({'content': full_content, 'conversation_id': str(conv_id)})}\n\n"
+        if sources:
+            yield f"data: {json.dumps({'citations': sources})}\n\n"
         yield "data: [DONE]\n\n"
 
     msg = Message(
@@ -128,7 +139,7 @@ def chat_completion(req: dict, session: Session = Depends(get_session)):
         role="assistant",
         content=full_content,
         agent_name=state.get("user_intent", "general"),
-        sources=ctx,
+        sources=sources,
     )
     session.add(msg)
     session.commit()

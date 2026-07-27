@@ -36,6 +36,22 @@ class TestKnowledgeDocument:
         assert doc.created_at is not None
         assert doc.updated_at is not None
 
+    def test_chunk_stores_embedding(self, db_session: Session):
+        doc = KnowledgeDocument(title="Embed test", content="test")
+        db_session.add(doc)
+        db_session.flush()
+        embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+        chunk = DocumentChunk(
+            document_id=doc.id,
+            content="embed chunk",
+            chunk_index=0,
+            embedding=embedding,
+        )
+        db_session.add(chunk)
+        db_session.commit()
+        db_session.refresh(chunk)
+        assert chunk.embedding == embedding
+
 
 class TestConversation:
     def test_create_conversation(self, db_session: Session):

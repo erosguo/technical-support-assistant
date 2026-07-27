@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, JSON, ForeignKey, Integer
+from sqlalchemy import Column, String, Text, JSON, ForeignKey, Integer, PickleType
 from app.db.base import Base, TimestampMixin
 from app.db.guid import GUID
 
@@ -14,7 +14,7 @@ class KnowledgeDocument(Base, TimestampMixin):
     metadata_ = Column("metadata", JSON, default=dict)
 
 
-class DocumentChunk(Base):
+class DocumentChunk(Base, TimestampMixin):
     __tablename__ = "document_chunks"
 
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
@@ -23,4 +23,5 @@ class DocumentChunk(Base):
     )
     content = Column(Text, nullable=False)
     chunk_index = Column(Integer, default=0)
+    embedding = Column(PickleType, nullable=True)
     metadata_ = Column("metadata", JSON, default=dict)

@@ -3,7 +3,9 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.db.session import get_session
 from app.models.knowledge import KnowledgeDocument
+from app.core.config import settings
 from app.services.knowledge import create_document, search_knowledge
+from app.services.llm import LLMRouter
 
 router = APIRouter()
 
@@ -15,7 +17,8 @@ def upload_document(
     session: Session = Depends(get_session),
 ):
     content = file.file.read().decode("utf-8")
-    doc = create_document(session=session, title=title, content=content)
+    llm = LLMRouter() if settings.llm_api_key else None
+    doc = create_document(session=session, title=title, content=content, llm=llm)
     return {"id": str(doc.id), "title": doc.title}
 
 
@@ -63,5 +66,8 @@ def delete_document(doc_id: str, session: Session = Depends(get_session)):
 def search_endpoint(
     query: str, top_k: int = 5, session: Session = Depends(get_session)
 ):
-    results = search_knowledge(session, query, top_k=top_k)
+    if not settings.llm_api_key:
+        return {"results": []}
+    llm = LLMRouter()
+    results = search_knowledge(session=session, llm=llm, query=query, top_k=top_k)
     return {"results": results}

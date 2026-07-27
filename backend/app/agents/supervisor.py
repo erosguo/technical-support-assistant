@@ -9,6 +9,7 @@ class AgentState(TypedDict):
     sub_agent_outputs: dict
     knowledge_context: list
     error_info: str
+    citations: list[dict]
 
 
 INTENT_PROMPT = """分析用户问题的意图，只返回一个词：
@@ -16,6 +17,43 @@ INTENT_PROMPT = """分析用户问题的意图，只返回一个词：
 - diagnosis: 故障排查、报错分析
 - general: 一般性对话
 问题：{query}"""
+
+
+CITATION_PROMPT = """基于以下知识回答问题。请在你的回答末尾标注引用来源，格式为【来源: 文档名称】。
+如果知识不足以回答，请如实说明。
+
+知识：
+{context}
+
+问题：{query}"""
+
+
+def _format_chunks(knowledge_context: list) -> str:
+    parts = []
+    for item in knowledge_context:
+        if isinstance(item, dict):
+            title = item.get("document_title", "未知文档")
+            content = item.get("content", str(item))
+            parts.append(f"[{title}] {content}")
+        else:
+            parts.append(str(item))
+    return "\n\n".join(parts) if parts else "未找到相关知识。"
+
+
+def _extract_citations(knowledge_context: list) -> list[dict]:
+    citations = []
+    for item in knowledge_context:
+        if isinstance(item, dict) and "document_title" in item:
+            citations.append(
+                {
+                    "document_id": item.get("document_id", ""),
+                    "document_title": item["document_title"],
+                    "chunk_index": item.get("chunk_index", 0),
+                    "score": item.get("score", 0.0),
+                    "excerpt": item.get("content", "")[:200],
+                }
+            )
+    return citations
 
 
 def build_supervisor_graph(llm: LLMRouter = None):
@@ -36,12 +74,11 @@ def build_supervisor_graph(llm: LLMRouter = None):
     async def knowledge_node(state: AgentState) -> AgentState:
         query = state["messages"][-1]["content"]
         ctx = state.get("knowledge_context", [])
-        context = "\n\n".join(ctx) if ctx else "未找到相关知识。"
-        prompt = f"""基于以下知识回答问题。如果知识不足以回答，请如实说明。
-知识：{context}
-问题：{query}"""
+        context = _format_chunks(ctx)
+        prompt = CITATION_PROMPT.format(context=context, query=query)
         reply = await llm.chat(messages=[{"role": "user", "content": prompt}])
         state["messages"].append({"role": "assistant", "content": reply})
+        state["citations"] = _extract_citations(ctx)
         return state
 
     async def general_node(state: AgentState) -> AgentState:
