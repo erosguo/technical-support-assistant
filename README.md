@@ -327,23 +327,64 @@ Closes #12
 
 ### 📦 Docker 部署
 
+#### 使用 Docker Compose
+
 ```bash
-# 使用 Docker Compose 一键启动
+# 启动所有服务 (PostgreSQL + Backend + Frontend)
 docker compose up -d
 
-# 服务列表
-# - PostgreSQL (端口 5432)
-# - Backend API (端口 8000)
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f backend
 ```
+
+#### 服务列表
+
+| 服务        | 端口 | 说明                         |
+| ----------- | ---- | ---------------------------- |
+| PostgreSQL  | 5432 | 主数据库（带 pgvector 扩展） |
+| Backend API | 8000 | FastAPI 后端服务             |
+| Frontend    | 3000 | React 前端（开发模式）       |
+
+#### 环境变量配置
+
+在项目根目录创建 `.env` 文件：
+
+```env
+# LLM API Key (必填)
+LLM_API_KEY=your-openai-api-key
+
+# 可选配置
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+```
+
+### ⚙️ 环境变量
+
+| 变量                   | 说明         | 默认值                                                             |
+| ---------------------- | ------------ | ------------------------------------------------------------------ |
+| `APP_NAME`             | 应用名称     | Tech Support Assistant                                             |
+| `DEBUG`                | 调试模式     | false                                                              |
+| `DB_DSN`               | 数据库连接   | postgresql+asyncpg://postgres:postgres@localhost:5432/tech_support |
+| `LLM_PROVIDER`         | LLM 提供者   | openai                                                             |
+| `LLM_API_KEY`          | LLM API Key  | (必填)                                                             |
+| `LLM_BASE_URL`         | LLM API 地址 | https://api.openai.com/v1                                          |
+| `LLM_MODEL`            | LLM 模型     | gpt-4o-mini                                                        |
+| `EMBEDDING_PROVIDER`   | 嵌入提供者   | openai                                                             |
+| `EMBEDDING_MODEL`      | 嵌入模型     | text-embedding-3-small                                             |
+| `EMBEDDING_DIMENSIONS` | 嵌入维度     | 1536                                                               |
 
 ### 📄 相关文档
 
-| 文档                   | 说明         |
-| ---------------------- | ------------ |
-| [PRD.md](PRD.md)       | 产品需求文档 |
-| [design.md](design.md) | 架构设计文档 |
-| [plan.md](plan.md)     | 实现计划     |
-| [SPEC.md](SPEC.md)     | 技术规范文档 |
+| 文档                   | 说明                 |
+| ---------------------- | -------------------- |
+| [PRD.md](PRD.md)       | 产品需求文档         |
+| [design.md](design.md) | 架构设计文档         |
+| [plan.md](plan.md)     | 实现计划             |
+| [SPEC.md](SPEC.md)     | 技术规范文档         |
+| [AGENTS.md](AGENTS.md) | Agent 架构和测试说明 |
 
 ### 📝 许可证
 
@@ -663,23 +704,64 @@ Closes #12
 
 ### 📦 Docker Deployment
 
+#### Using Docker Compose
+
 ```bash
-# Start with Docker Compose
+# Start all services (PostgreSQL + Backend + Frontend)
 docker compose up -d
 
-# Services
-# - PostgreSQL (Port 5432)
-# - Backend API (Port 8000)
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f backend
 ```
+
+#### Services
+
+| Service     | Port | Description                           |
+| ----------- | ---- | ------------------------------------- |
+| PostgreSQL  | 5432 | Main database with pgvector extension |
+| Backend API | 8000 | FastAPI backend service               |
+| Frontend    | 3000 | React frontend (development mode)     |
+
+#### Environment Configuration
+
+Create a `.env` file at the project root:
+
+```env
+# LLM API Key (required)
+LLM_API_KEY=your-openai-api-key
+
+# Optional configurations
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+```
+
+### ⚙️ Environment Variables
+
+| Variable               | Description          | Default                                                            |
+| ---------------------- | -------------------- | ------------------------------------------------------------------ |
+| `APP_NAME`             | Application name     | Tech Support Assistant                                             |
+| `DEBUG`                | Debug mode           | false                                                              |
+| `DB_DSN`               | Database connection  | postgresql+asyncpg://postgres:postgres@localhost:5432/tech_support |
+| `LLM_PROVIDER`         | LLM provider         | openai                                                             |
+| `LLM_API_KEY`          | LLM API Key          | (required)                                                         |
+| `LLM_BASE_URL`         | LLM API endpoint     | https://api.openai.com/v1                                          |
+| `LLM_MODEL`            | LLM model            | gpt-4o-mini                                                        |
+| `EMBEDDING_PROVIDER`   | Embedding provider   | openai                                                             |
+| `EMBEDDING_MODEL`      | Embedding model      | text-embedding-3-small                                             |
+| `EMBEDDING_DIMENSIONS` | Embedding dimensions | 1536                                                               |
 
 ### 📄 Related Documentation
 
-| Document               | Description                   |
-| ---------------------- | ----------------------------- |
-| [PRD.md](PRD.md)       | Product Requirements Document |
-| [design.md](design.md) | Architecture Design Document  |
-| [plan.md](plan.md)     | Implementation Plan           |
-| [SPEC.md](SPEC.md)     | Technical Specification       |
+| Document               | Description                    |
+| ---------------------- | ------------------------------ |
+| [PRD.md](PRD.md)       | Product Requirements Document  |
+| [design.md](design.md) | Architecture Design Document   |
+| [plan.md](plan.md)     | Implementation Plan            |
+| [SPEC.md](SPEC.md)     | Technical Specification        |
+| [AGENTS.md](AGENTS.md) | Agent architecture and testing |
 
 ### 📝 License
 
