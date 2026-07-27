@@ -1,0 +1,115 @@
+# Dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual Environment
+venv/
+env/
+.env
+.venv
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+ehthumbs_vista.db
+
+# Logs
+*.log
+logs/
+error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python Tooling
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints
+.tox/
+
+# Environment
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+.cache/
+
+# Build
+*.tsbuildinfo
+.next/
+out/
+.parcel-cache/
+
+# Testing
+coverage/
+.nyc_output/
+.vitest/
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+backend/test.db
+
+# Data
+data/
+uploads/
+tmp/
+temp/
+
+# Cache
+.cache/
+.temp/
+.tmp/
+
+# Editor backups
+*.bak
+*.tmp
+*.temp
+*~
+
+# System files
+.project
+.classpath
+.c9settings/
+.settings/
+*.sublime-workspace
+*.sublime-project
+.vscode/settings.json
+!.vscode/extensions.json
+
+# Husky (already tracked)
+.husky/_

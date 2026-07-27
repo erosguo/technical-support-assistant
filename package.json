@@ -1,0 +1,26 @@
+{
+  "name": "technical-support-assistant",
+  "version": "1.0.0",
+  "description": "Technical Support Assistant - 面向内部技术支持团队的企业级 AI Agent 平台",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "echo 'Linting...'",
+    "format": "echo 'Formatting...'"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0"
+  },
+  "lint-staged": {
+    "*.py": [
+      "ruff check",
+      "ruff format"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}
