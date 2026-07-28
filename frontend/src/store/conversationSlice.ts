@@ -67,6 +67,14 @@ export const fetchMessages = createAsyncThunk(
   },
 );
 
+export const deleteConversation = createAsyncThunk(
+  'conversation/delete',
+  async (convId: string) => {
+    await axios.delete(`${API_BASE}/chat/conversations/${convId}`);
+    return convId;
+  },
+);
+
 const slice = createSlice({
   name: 'conversation',
   initialState,
@@ -101,6 +109,13 @@ const slice = createSlice({
     });
     builder.addCase(fetchMessages.fulfilled, (state, action) => {
       state.messages = action.payload;
+    });
+    builder.addCase(deleteConversation.fulfilled, (state, action) => {
+      state.list = state.list.filter((c) => c.id !== action.payload);
+      if (state.currentId === action.payload) {
+        state.currentId = null;
+        state.messages = [];
+      }
     });
   },
 });

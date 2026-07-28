@@ -79,12 +79,14 @@
 - **pgvector 0.3+** - 向量检索扩展
 - **Alembic 1.13+** - 数据库迁移
 
-#### 前端 (规划中)
+#### 前端
 
 - **React 18** - UI 框架
 - **TypeScript 5** - 类型安全
 - **Redux Toolkit** - 状态管理
 - **Ant Design 5** - UI 组件库
+- **React Router 6** - 路由管理
+- **Axios** - HTTP 客户端
 
 #### 开发工具
 
@@ -117,7 +119,9 @@ technical-support-assistant/
 │   │   │   └── knowledge.py           #   知识库模型
 │   │   ├── services/                     # 业务服务
 │   │   │   ├── knowledge.py            #   知识库服务
-│   │   │   └── llm.py                  #   LLM 路由
+│   │   │   ├── llm.py                  #   LLM 路由
+│   │   │   ├── chunking.py             #   文本分块
+│   │   │   └── rag.py                  #   RAG 检索
 │   │   ├── main.py                       #   应用入口
 │   │   └── ...
 │   ├── tests/                            # 测试套件
@@ -129,7 +133,20 @@ technical-support-assistant/
 │   │   └── test_services/              #   服务测试
 │   ├── alembic/                          # 数据库迁移
 │   └── pyproject.toml                   # 项目配置
-├── frontend/                             # 前端应用 (规划中)
+├── frontend/                             # 前端应用
+│   ├── src/
+│   │   ├── pages/                        #   页面组件
+│   │   │   ├── ChatPage.tsx            #     聊天页面
+│   │   │   └── KnowledgeBasePage.tsx  #     知识库管理页面
+│   │   ├── services/                     #   API 服务
+│   │   │   └── knowledge.ts            #     知识库 API
+│   │   ├── store/                        #   Redux Store
+│   │   │   ├── index.ts               #     Store 配置
+│   │   │   └── conversationSlice.ts   #     会话状态
+│   │   ├── __tests__/                    #   前端测试
+│   │   ├── App.tsx                       #   根组件
+│   │   └── main.tsx                      #   入口文件
+│   └── package.json                      # 前端配置
 ├── .husky/                               # Git 钩子
 ├── SPEC.md                               # 技术规范文档
 ├── PRD.md                                # 产品需求文档
@@ -458,12 +475,14 @@ LLM_BASE_URL=https://api.openai.com/v1
 - **pgvector 0.3+** - Vector search extension
 - **Alembic 1.13+** - Database migrations
 
-#### Frontend (Planned)
+#### Frontend
 
 - **React 18** - UI framework
 - **TypeScript 5** - Type safety
 - **Redux Toolkit** - State management
 - **Ant Design 5** - UI component library
+- **React Router 6** - Routing
+- **Axios** - HTTP client
 
 #### Development Tools
 
@@ -496,7 +515,9 @@ technical-support-assistant/
 │   │   │   └── knowledge.py           #   Knowledge model
 │   │   ├── services/                     # Business services
 │   │   │   ├── knowledge.py            #   Knowledge service
-│   │   │   └── llm.py                  #   LLM router
+│   │   │   ├── llm.py                  #   LLM router
+│   │   │   ├── chunking.py             #   Text chunking
+│   │   │   └── rag.py                  #   RAG retrieval
 │   │   ├── main.py                       #   Application entry
 │   │   └── ...
 │   ├── tests/                            # Test suite
@@ -508,7 +529,20 @@ technical-support-assistant/
 │   │   └── test_services/              #   Service tests
 │   ├── alembic/                          # Database migrations
 │   └── pyproject.toml                   # Project config
-├── frontend/                             # Frontend Application (Planned)
+├── frontend/                             # Frontend Application
+│   ├── src/
+│   │   ├── pages/                        #   Page components
+│   │   │   ├── ChatPage.tsx            #     Chat page
+│   │   │   └── KnowledgeBasePage.tsx  #     Knowledge base management
+│   │   ├── services/                     #   API services
+│   │   │   └── knowledge.ts            #     Knowledge API
+│   │   ├── store/                        #   Redux Store
+│   │   │   ├── index.ts               #     Store config
+│   │   │   └── conversationSlice.ts   #     Conversation state
+│   │   ├── __tests__/                    #   Frontend tests
+│   │   ├── App.tsx                       #   Root component
+│   │   └── main.tsx                      #   Entry point
+│   └── package.json                      #   Frontend config
 ├── .husky/                               # Git hooks
 ├── SPEC.md                               # Technical specification
 ├── PRD.md                                # Product requirement doc

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layout, Menu, Button, Input, List, Typography, Empty, Tag } from 'antd';
-import { PlusOutlined, MessageOutlined } from '@ant-design/icons';
+import { Layout, Menu, Button, Input, List, Typography, Empty, Tag, Popconfirm } from 'antd';
+import { PlusOutlined, MessageOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { AppDispatch, RootState, Citation } from '../store';
@@ -11,6 +11,7 @@ import {
   appendMessage,
   setCurrentId,
   setStreaming,
+  deleteConversation,
 } from '../store/conversationSlice';
 
 const { Sider, Content } = Layout;
@@ -41,6 +42,14 @@ export default function ChatPage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleDelete = (e: React.MouseEvent, convId: string) => {
+    e.stopPropagation();
+    dispatch(deleteConversation(convId));
+    if (currentId === convId) {
+      navigate('/chat', { replace: true });
+    }
+  };
 
   const handleNew = async () => {
     const res = await dispatch(createConversation());
@@ -102,7 +111,7 @@ export default function ChatPage() {
   };
 
   return (
-    <Layout style={{ height: '100vh' }}>
+    <Layout style={{ height: '100%' }}>
       <Sider
         width={280}
         style={{ background: '#fff', borderRight: '1px solid #f0f0f0' }}
@@ -119,7 +128,28 @@ export default function ChatPage() {
           items={list.map((c) => ({
             key: c.id,
             icon: <MessageOutlined />,
-            label: c.title,
+            label: (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                  {c.title}
+                </span>
+                <Popconfirm
+                  title="删除此对话？"
+                  onConfirm={(e) => handleDelete(e as unknown as React.MouseEvent, c.id)}
+                >
+                  <DeleteOutlined
+                    style={{ color: '#999', fontSize: 12 }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </Popconfirm>
+              </div>
+            ),
           }))}
         />
       </Sider>
