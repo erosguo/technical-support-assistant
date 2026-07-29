@@ -1908,3 +1908,657 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 - [ ] 对话历史持久化到 PostgreSQL
 - [ ] 知识库文档上传和搜索功能正常
 - [ ] 测试覆盖 Mock LLM，不依赖外部 API
+
+---
+
+## Phase 3 (Agent 体系) 任务分解
+
+---
+
+## Task 3.1: Diagnosis Agent — 故障诊断模型与匹配服务
+
+**目标**：建立已知错误模式库，实现错误文本的规则/语义匹配。
+
+### Step 3.1.1 - RED: 写 ErrorPattern 模型测试
+
+**文件**：`backend/tests/test_db/test_models.py`
+
+```python
+class TestErrorPattern:
+    def test_create_pattern(self, db_session):
+        # 创建 ErrorPattern，验证 id、pattern、solution、severity 字段
+        pass
+
+    def test_optional_fields_default(self, db_session):
+        # 验证 tags/solution 可空，severity 默认 "medium"
+        pass
+```
+
+### Step 3.1.2 - GREEN: 实现 ErrorPattern 模型
+
+**文件**：`backend/app/models/error_pattern.py`
+
+```python
+class ErrorPattern(Base, TimestampMixin):
+    __tablename__ = "error_patterns"
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    pattern = Column(String(500), nullable=False)       # 正则/关键词模式
+    solution = Column(Text, nullable=True)               # 解决方案
+    severity = Column(String(20), default="medium")      # critical/high/medium/low
+    category = Column(String(100), nullable=True)        # 分类标签
+    tags = Column(JSON, default=list)                    # 标签数组
+```
+
+需在 `Base` 中注册，`conftest.py` 自动创建表。
+
+### Step 3.1.3 - RED: 写 ErrorMatcher 服务测试
+
+**文件**：`backend/tests/test_services/test_diagnosis.py`
+
+```python
+class TestErrorMatcher:
+    def test_exact_pattern_match(self, db_session):
+        # 插入 ErrorPattern("Connection refused")，匹配 "Connection refused"
+        pass
+
+    def test_regex_pattern_match(self, db_session):
+        # 插入 ErrorPattern("ERR_\d{5}")，匹配 "ERR_12345"
+        pass
+
+    def test_no_match_returns_empty(self, db_session):
+        # 无匹配时返回空列表
+        pass
+
+    def test_match_returns_multiple_sorted_by_severity(self, db_session):
+        # 多个匹配按 severity 排序返回
+        pass
+```
+
+### Step 3.1.4 - GREEN: 实现 ErrorMatcher 服务
+
+**文件**：`backend/app/services/diagnosis.py`
+
+```python
+def match_errors(session: Session, error_text: str) -> list[dict]:
+    """遍历 ErrorPattern 表，regex/keyword 匹配，按 severity 排序返回"""
+```
+
+### 验证 Step 3.1.1 - 3.1.4：
+
+```bash
+pytest tests/test_db/test_models.py -v -k "ErrorPattern"
+pytest tests/test_services/test_diagnosis.py -v
+```
+
+---
+
+## Task 3.2: Diagnosis Agent — 故障诊断 Agent 节点
+
+**目标**：在 LangGraph Supervisor 中添加 diagnosis 路由和专门的诊断 Agent。
+
+### Step 3.2.1 - RED: 写 Diagnosis Agent 测试
+
+**文件**：`backend/tests/test_agents/test_diagnosis.py`
+
+```python
+class TestDiagnosisAgent:
+    def test_diagnosis_node_returns_reply(self, mock_provider, db_session):
+        # 输入 state 含 "Connection refused"，期望输出含诊断内容
+        pass
+
+    def test_diagnosis_node_calls_error_matcher(self, mock_provider, db_session):
+        # 验证 error_matcher 被调用且结果注入 prompt
+        pass
+
+    def test_diagnosis_node_no_match_fallback(self, mock_provider, db_session):
+        # 无匹配模式时 Agent 给出通用建议
+        pass
+```
+
+### Step 3.2.2 - GREEN: 实现 Diagnosis Agent 节点
+
+**文件**：`backend/app/agents/diagnosis.py`
+
+```python
+DIAGNOSIS_PROMPT = """你是故障诊断专家。根据以下错误信息和已知模式给出诊断建议。
+如果已知解决方案为空，给出通用排查步骤。
+
+错误信息：{error_text}
+
+已知匹配模式：
+{matches}
+
+请给出诊断结果和修复建议。"""
+
+async def diagnosis_node(state: AgentState) -> AgentState:
+    error_text = state.get("error_info", state["messages"][-1]["content"])
+    matches = match_errors(session, error_text)
+    prompt = DIAGNOSIS_PROMPT.format(error_text=error_text, matches=format_matches(matches))
+    reply = await llm.chat(messages=[{"role": "user", "content": prompt}])
+    state["messages"].append({"role": "assistant", "content": reply})
+    state["sub_agent_outputs"]["diagnosis"] = {"matches": matches, "reply": reply}
+    return state
+```
+
+### Step 3.2.3 - RED: 更新意图路由 + 集成测试
+
+**文件**：`backend/tests/test_agents/test_supervisor.py`
+
+```python
+def test_detect_diagnosis_intent(self, mock_provider):
+    # "error_12345" → user_intent == "diagnosis"
+    pass
+
+def test_diagnosis_routed_correctly(self, mock_provider):
+    # user_intent == "diagnosis" → 走 diagnosis_node 而不是 general
+    pass
+```
+
+### Step 3.2.4 - GREEN: 更新 Supervisor 路由
+
+**文件**：`backend/app/agents/supervisor.py`
+
+```python
+# 修改 router_condition:
+def router_condition(state):
+    intent = state.get("user_intent", "general")
+    return intent  # diagnosis 直接路由到 diagnosis 节点
+
+# 在 graph 中添加:
+graph.add_node("diagnosis", diagnosis_node)
+graph.add_conditional_edges("detect_intent", router_condition)
+graph.add_edge("diagnosis", END)
+```
+
+更新 `AgentState` 添加 `session` 字段（或通过闭包注入 session）。
+
+### 验证 Step 3.2.1 - 3.2.4：
+
+```bash
+pytest tests/test_agents/test_diagnosis.py -v
+pytest tests/test_agents/test_supervisor.py -v -k "diagnosis"
+```
+
+---
+
+## Task 3.3: Diagnosis Agent — 诊断 API + 前端
+
+**目标**：暴露诊断 API，前端提供错误输入界面。
+
+### Step 3.3.1 - RED: 写诊断 API 测试
+
+**文件**：`backend/tests/test_api/test_diagnosis.py`
+
+```python
+class TestDiagnosisAPI:
+    async def test_diagnose_error_text(self, client, db_session):
+        # POST /api/v1/diagnosis 传入 error_text，返回诊断结果
+        pass
+
+    async def test_diagnose_with_conversation(self, client, db_session):
+        # 与对话关联的诊断
+        pass
+
+    async def test_diagnose_no_match(self, client):
+        # 无匹配时返回通用建议
+        pass
+```
+
+### Step 3.3.2 - GREEN: 实现诊断 API 路由
+
+**文件**：`backend/app/api/v1/diagnosis.py`
+
+```python
+router = APIRouter()
+
+@router.post("/diagnosis")
+def diagnose(req: dict, session: Session = Depends(get_session)):
+    error_text = req["error_text"]
+    # 通过 Diagnosis Agent 处理
+    ...
+```
+
+在 `main.py` 注册 `app.include_router(diagnosis_router, prefix="/api/v1")`。
+
+### Step 3.3.3 - 前端错误诊断页面
+
+**文件**：`frontend/src/pages/DiagnosisPage.tsx`
+
+- 错误输入 TextArea
+- 诊断结果展示区（匹配模式、严重程度、解决方案）
+- 无匹配时显示通用排查建议
+
+### Step 3.3.4 - 更新导航栏
+
+**文件**：`frontend/src/App.tsx`
+
+- 添加「故障诊断」导航项
+- 路由 `/diagnosis` → DiagnosisPage
+
+### 验证 Step 3.3.1 - 3.3.4：
+
+```bash
+pytest tests/test_api/test_diagnosis.py -v
+npx vitest run
+```
+
+---
+
+## Task 3.4: Ticket Agent — 工单模型与 CRUD
+
+**目标**：建立工单系统，支持创建/查询/更新/关闭工单。
+
+### Step 3.4.1 - RED: 写 Ticket 模型测试
+
+**文件**：`backend/tests/test_db/test_models.py`
+
+```python
+class TestTicket:
+    def test_create_ticket(self, db_session):
+        # 创建工单，验证所有字段
+        pass
+
+    def test_ticket_default_status(self, db_session):
+        # 默认 status == "open"
+        pass
+
+    def test_ticket_auto_timestamps(self, db_session):
+        # 验证 created_at / updated_at 自动设置
+        pass
+```
+
+### Step 3.4.2 - GREEN: 实现 Ticket 模型
+
+**文件**：`backend/app/models/ticket.py`
+
+```python
+class Ticket(Base, TimestampMixin):
+    __tablename__ = "tickets"
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    status = Column(String(20), default="open")       # open/in_progress/resolved/closed
+    priority = Column(String(20), default="medium")   # critical/high/medium/low
+    assigned_to = Column(String(100), nullable=True)
+    source = Column(String(50), default="chat")       # chat/email/api
+    conversation_id = Column(GUID, ForeignKey("conversations.id"), nullable=True)
+```
+
+### Step 3.4.3 - RED: 写 Ticket Service 测试
+
+**文件**：`backend/tests/test_services/test_ticket.py`
+
+```python
+class TestTicketService:
+    def test_create_ticket(self, db_session):
+        pass
+
+    def test_get_ticket_by_id(self, db_session):
+        pass
+
+    def test_list_tickets(self, db_session):
+        pass
+
+    def test_update_ticket_status(self, db_session):
+        pass
+
+    def test_delete_ticket(self, db_session):
+        pass
+```
+
+### Step 3.4.4 - GREEN: 实现 Ticket Service
+
+**文件**：`backend/app/services/ticket.py`
+
+```python
+def create_ticket(session, title, description, **kwargs) -> Ticket: ...
+def get_ticket(session, ticket_id) -> Ticket: ...
+def list_tickets(session, **filters) -> list[Ticket]: ...
+def update_ticket(session, ticket_id, **updates) -> Ticket: ...
+def delete_ticket(session, ticket_id) -> None: ...
+```
+
+### 验证 Step 3.4.1 - 3.4.4：
+
+```bash
+pytest tests/test_db/test_models.py -v -k "Ticket"
+pytest tests/test_services/test_ticket.py -v
+```
+
+---
+
+## Task 3.5: Ticket Agent — 工单 API + 前端 + Agent 节点
+
+**目标**：暴露工单 API，实现 Ticket Agent 节点，添加工单管理前端。
+
+### Step 3.5.1 - RED: 写 Ticket API 测试
+
+**文件**：`backend/tests/test_api/test_ticket.py`
+
+```python
+class TestTicketAPI:
+    async def test_create_ticket(self, client):
+        pass
+
+    async def test_list_tickets(self, client):
+        pass
+
+    async def test_get_ticket(self, client):
+        pass
+
+    async def test_update_ticket_status(self, client):
+        pass
+
+    async def test_delete_ticket(self, client):
+        pass
+```
+
+### Step 3.5.2 - GREEN: 实现 Ticket API 路由
+
+**文件**：`backend/app/api/v1/ticket.py`
+
+```python
+router = APIRouter()
+@router.post("/tickets") -> create
+@router.get("/tickets") -> list
+@router.get("/tickets/{id}") -> get
+@router.patch("/tickets/{id}") -> update
+@router.delete("/tickets/{id}") -> delete
+```
+
+### Step 3.5.3 - RED: 写 Ticket Agent 节点测试
+
+**文件**：`backend/tests/test_agents/test_ticket.py`
+
+```python
+class TestTicketAgent:
+    def test_ticket_node_creates_ticket(self, mock_provider, db_session):
+        pass
+
+    def test_ticket_node_lists_tickets(self, mock_provider, db_session):
+        pass
+
+    def test_ticket_node_update_ticket(self, mock_provider, db_session):
+        pass
+```
+
+### Step 3.5.4 - GREEN: 实现 Ticket Agent 节点
+
+**文件**：`backend/app/agents/ticket.py`
+
+```python
+TICKET_PROMPT = """你是工单管理助手。根据用户请求执行工单操作。
+可用操作：创建工单、查询工单、更新工单状态。
+
+用户请求：{query}
+
+当前工单上下文：
+{tickets_context}"""
+
+async def ticket_node(state: AgentState) -> AgentState:
+    # 解析 user intent for ticket operation
+    # 调用 ticket service 执行操作
+    # 返回结果
+```
+
+### Step 3.5.5 - 前端工单管理页面
+
+**文件**：`frontend/src/pages/TicketPage.tsx`
+
+- 工单列表（Table 显示 ID、标题、状态、优先级、创建时间）
+- 创建工单（Modal 表单）
+- 更新状态（Select dropdown）
+- 查看详情
+
+### Step 3.5.6 - 更新导航
+
+**文件**：`frontend/src/App.tsx`
+
+- 添加「工单管理」导航项
+- 路由 `/tickets` → TicketPage
+
+### 验证 Step 3.5.1 - 3.5.6：
+
+```bash
+pytest tests/test_api/test_ticket.py -v
+pytest tests/test_agents/test_ticket.py -v
+npx vitest run
+```
+
+---
+
+## Task 3.6: Data Agent — 数据查询 Agent
+
+**目标**：允许用户用自然语言查询系统数据（对话统计、知识库统计等）。
+
+### Step 3.6.1 - RED: 写 Data Agent 测试
+
+**文件**：`backend/tests/test_agents/test_data.py`
+
+```python
+class TestDataAgent:
+    def test_data_agent_returns_statistics(self, mock_provider):
+        # "有多少对话?" → 返回对话总数
+        pass
+
+    def test_data_agent_query_conversations(self, mock_provider):
+        # "最近7天的对话" → 返回时间过滤结果
+        pass
+
+    def test_data_agent_unknown_query(self, mock_provider):
+        # 无法理解的查询 → 返回提示引导用户
+        pass
+```
+
+### Step 3.6.2 - GREEN: 实现 Data Agent
+
+**文件**：`backend/app/agents/data.py`
+
+```python
+DATA_PROMPT = """你是数据分析助手。根据用户问题查询系统数据。
+可用数据源：对话统计、消息统计、知识库统计。
+
+用户问题：{query}
+
+数据结果：
+{data_result}"""
+
+async def data_node(state: AgentState) -> AgentState:
+    # 用 LLM 解析查询意图 → 映射到预定义查询
+    query_type = await classify_data_query(llm, query)
+    result = execute_data_query(session, query_type, **params)
+    # 格式化回复
+```
+
+### Step 3.6.3 - 数据查询函数
+
+**文件**：`backend/app/services/data_query.py`
+
+```python
+def count_conversations(session, **filters) -> int
+def count_messages(session, **filters) -> int
+def conversation_trend(session, days=7) -> list[dict]
+def knowledge_stats(session) -> dict
+```
+
+### 验证 Step 3.6.1 - 3.6.3：
+
+```bash
+pytest tests/test_agents/test_data.py -v
+```
+
+---
+
+## Task 3.7: Escalation Agent — 升级 Agent
+
+**目标**：当 Agent 无法解决问题时，智能升级到 L2/L3 工程师。
+
+### Step 3.7.1 - RED: 写 Escalation Agent 测试
+
+**文件**：`backend/tests/test_agents/test_escalation.py`
+
+```python
+class TestEscalationAgent:
+    def test_escalation_creates_ticket(self, mock_provider, db_session):
+        # 升级 → 自动创建工单并标记为 escalated
+        pass
+
+    def test_escalation_notifies_assignee(self, mock_provider):
+        # 升级通知责任人（mock 通知服务）
+        pass
+
+    def test_low_severity_no_escalation(self, mock_provider):
+        # 低严重度不升级
+        pass
+```
+
+### Step 3.7.2 - GREEN: 实现 Escalation Agent
+
+**文件**：`backend/app/agents/escalation.py`
+
+```python
+ESCALATION_PROMPT = """评估是否需要对以下问题进行升级。
+严重度为 critical/high 或连续失败次数 > 2 时应升级。
+
+问题：{query}
+当前诊断结果：{diagnosis_result}
+连续失败次数：{retry_count}
+
+输出：升级 / 不升级"""
+```
+
+### 验证 Step 3.7.1 - 3.7.2：
+
+```bash
+pytest tests/test_agents/test_escalation.py -v
+```
+
+---
+
+## Task 3.8: 多 Agent 协作流程
+
+**目标**：设计 Diagnosis → Escalation → Ticket 的自动流转。
+
+### Step 3.8.1 - RED: 写协作流程测试
+
+**文件**：`backend/tests/test_agents/test_collaboration.py`
+
+```python
+class TestMultiAgentWorkflow:
+    def test_diagnosis_triggers_escalation(self, mock_provider):
+        # 诊断失败 → 自动进入 Escalation Agent
+        pass
+
+    def test_escalation_creates_ticket(self, mock_provider, db_session):
+        # 升级 → Ticket Agent 自动创建工单
+        pass
+
+    def test_simple_question_no_escalation(self, mock_provider):
+        # 简单问题不触发升级
+        pass
+```
+
+### Step 3.8.2 - GREEN: 实现多 Agent 图
+
+**文件**：`backend/app/agents/supervisor.py`（重构）
+
+- 扩展路由条件支持多层路由（diagnosis → escalation → ticket）
+- 添加 `sub_agent_outputs` 在 Agent 间传递上下文
+- 条件边判断是否继续流转或结束
+
+```python
+def router_condition(state):
+    intent = state["user_intent"]
+    if intent == "diagnosis":
+        diag = state.get("sub_agent_outputs", {}).get("diagnosis", {})
+        if diag.get("needs_escalation"):
+            return "escalation"
+        return END
+    if intent == "escalation":
+        return "ticket"
+    return intent  # knowledge / general
+```
+
+### 验证 Step 3.8.1 - 3.8.2：
+
+```bash
+pytest tests/test_agents/test_collaboration.py -v
+```
+
+---
+
+## Task 3.9: 人机协同 (Human-in-the-loop Interrupt)
+
+**目标**：在关键决策点（升级、创建工单）插入人工确认。
+
+### Step 3.9.1 - RED: 写 Interrupt 测试
+
+**文件**：`backend/tests/test_agents/test_interrupt.py`
+
+```python
+class TestHumanInTheLoop:
+    def test_interrupt_at_escalation(self, mock_provider):
+        # 升级前触发 interrupt，等待人工确认
+        pass
+
+    def test_approve_escalation_resumes(self, mock_provider):
+        # 人工批准 → 继续执行
+        pass
+
+    def test_reject_escalation_stops(self, mock_provider):
+        # 人工拒绝 → 终止流程
+        pass
+```
+
+### Step 3.9.2 - GREEN: 实现 Interrupt 节点
+
+**文件**：`backend/app/agents/supervisor.py`
+
+```python
+from langgraph.graph import interrupt
+
+async def human_approval_node(state: AgentState) -> AgentState:
+    decision = interrupt({
+        "type": "escalation_approval",
+        "ticket_preview": state.get("sub_agent_outputs", {}).get("ticket", {}),
+        "question": "是否批准升级到 L2 工程师？",
+    })
+    if decision.get("approved"):
+        state["sub_agent_outputs"]["human_decision"] = "approved"
+    else:
+        state["sub_agent_outputs"]["human_decision"] = "rejected"
+    return state
+```
+
+### Step 3.9.3 - 前端审批 UI
+
+**文件**：`frontend/src/pages/ChatPage.tsx`（扩展）
+
+- 检测 interrupt 事件 → 展示审批对话框
+- 批准/拒绝按钮 → 恢复 Agent 执行
+- 显示待审批的工单预览
+
+### 验证 Step 3.9.1 - 3.9.3：
+
+```bash
+pytest tests/test_agents/test_interrupt.py -v
+npx vitest run
+```
+
+---
+
+## 验证清单 (Phase 3 完成标准)
+
+- [ ] 已知错误模式可自动匹配并给出诊断建议
+- [ ] 诊断 Agent 通过意图路由正确触发
+- [ ] 诊断 API 端点 POST /api/v1/diagnosis 返回结构化结果
+- [ ] 前端故障诊断页面可输入错误文本并展示诊断结果
+- [ ] 工单 CRUD 完整（创建/查询/更新/删除）
+- [ ] Ticket Agent 可通过对话创建/查询工单
+- [ ] 前端工单管理页面完整
+- [ ] Data Agent 可回答数据统计问题
+- [ ] 诊断 → 升级 → 工单自动流转通畅
+- [ ] 关键节点有人工审批拦截
+- [ ] `pytest tests/ -v` 全部通过
+- [ ] `npx vitest run` 前端测试全部通过
+- [ ] `ruff check backend/app/` 全部通过

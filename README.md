@@ -28,7 +28,8 @@
 | -------------------- | ------------------------------------------------------------- |
 | 🔍 **智能知识检索**  | 基于 RAG 的知识库问答，支持向量检索、余弦相似度匹配和引用溯源 |
 | 📝 **文本分块**      | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
-| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到知识问答或通用对话子 Agent |
+| 🩺 **错误诊断**      | 基于正则模式匹配的错误诊断，支持严重等级排序和解决方案推荐    |
+| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到知识问答或诊断子 Agent     |
 | 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
 | 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
 | 🖥️ **React 前端**    | 完整的聊天界面，支持会话列表、消息展示、引用标签、流式加载    |
@@ -116,12 +117,14 @@ technical-support-assistant/
 │   │   │   └── session.py             #   会话管理
 │   │   ├── models/                       # 数据模型
 │   │   │   ├── conversation.py         #   会话模型
-│   │   │   └── knowledge.py           #   知识库模型
+│   │   │   ├── knowledge.py           #   知识库模型
+│   │   │   └── error_pattern.py        #   错误模式模型
 │   │   ├── services/                     # 业务服务
 │   │   │   ├── knowledge.py            #   知识库服务
 │   │   │   ├── llm.py                  #   LLM 路由
 │   │   │   ├── chunking.py             #   文本分块
-│   │   │   └── rag.py                  #   RAG 检索
+│   │   │   ├── rag.py                  #   RAG 检索
+│   │   │   └── diagnosis.py           #   错误诊断
 │   │   ├── main.py                       #   应用入口
 │   │   └── ...
 │   ├── tests/                            # 测试套件
@@ -130,7 +133,9 @@ technical-support-assistant/
 │   │   ├── test_agents/                 #   Agent 测试
 │   │   ├── test_api/                    #   API 测试
 │   │   ├── test_db/                     #   数据库测试
+│   │   │   └── test_error_pattern.py   #     错误模式测试
 │   │   └── test_services/              #   服务测试
+│   │       └── test_diagnosis.py       #     诊断服务测试
 │   ├── alembic/                          # 数据库迁移
 │   └── pyproject.toml                   # 项目配置
 ├── frontend/                             # 前端应用
@@ -423,7 +428,8 @@ LLM_BASE_URL=https://api.openai.com/v1
 | -------------------------------------- | ----------------------------------------------------------------- |
 | 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations |
 | 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap   |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or general agents     |
+| 🩺 **Error Diagnosis**                 | Regex-based error pattern matching with severity ordering         |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or diagnosis agents   |
 | 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display        |
 | 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD           |
 | 🖥️ **React Frontend**                  | Complete chat interface with conversation list and citations      |
@@ -512,12 +518,14 @@ technical-support-assistant/
 │   │   │   └── session.py             #   Session management
 │   │   ├── models/                       # Data models
 │   │   │   ├── conversation.py         #   Conversation model
-│   │   │   └── knowledge.py           #   Knowledge model
+│   │   │   ├── knowledge.py           #   Knowledge model
+│   │   │   └── error_pattern.py        #   Error pattern model
 │   │   ├── services/                     # Business services
 │   │   │   ├── knowledge.py            #   Knowledge service
 │   │   │   ├── llm.py                  #   LLM router
 │   │   │   ├── chunking.py             #   Text chunking
-│   │   │   └── rag.py                  #   RAG retrieval
+│   │   │   ├── rag.py                  #   RAG retrieval
+│   │   │   └── diagnosis.py           #   Error diagnosis
 │   │   ├── main.py                       #   Application entry
 │   │   └── ...
 │   ├── tests/                            # Test suite
@@ -526,7 +534,9 @@ technical-support-assistant/
 │   │   ├── test_agents/                 #   Agent tests
 │   │   ├── test_api/                    #   API tests
 │   │   ├── test_db/                     #   Database tests
+│   │   │   └── test_error_pattern.py   #     Error pattern tests
 │   │   └── test_services/              #   Service tests
+│   │       └── test_diagnosis.py       #     Diagnosis service tests
 │   ├── alembic/                          # Database migrations
 │   └── pyproject.toml                   # Project config
 ├── frontend/                             # Frontend Application
