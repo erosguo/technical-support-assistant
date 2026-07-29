@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { ConfigProvider, Layout, Menu } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
-import { MessageOutlined, BookOutlined } from '@ant-design/icons';
+import { MessageOutlined, BookOutlined, BugOutlined } from '@ant-design/icons';
 import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
+import DiagnosisPage from './pages/DiagnosisPage';
 
 const { Header, Content } = Layout;
 
@@ -11,7 +12,11 @@ function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const currentKey = location.pathname.startsWith('/knowledge') ? '/knowledge' : '/chat';
+  const currentKey = location.pathname.startsWith('/knowledge')
+    ? '/knowledge'
+    : location.pathname.startsWith('/diagnosis')
+      ? '/diagnosis'
+      : '/chat';
 
   return (
     <Layout style={{ height: '100vh' }}>
@@ -32,6 +37,7 @@ function AppLayout() {
           selectedKeys={[currentKey]}
           items={[
             { key: '/chat', icon: <MessageOutlined />, label: '对话' },
+            { key: '/diagnosis', icon: <BugOutlined />, label: '故障诊断' },
             { key: '/knowledge', icon: <BookOutlined />, label: '知识库' },
           ]}
           onClick={({ key }) => navigate(key)}
@@ -42,6 +48,7 @@ function AppLayout() {
         <Routes>
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:id" element={<ChatPage />} />
+          <Route path="/diagnosis" element={<DiagnosisPage />} />
           <Route path="/knowledge" element={<KnowledgeBasePage />} />
           <Route path="*" element={<ChatPage />} />
         </Routes>

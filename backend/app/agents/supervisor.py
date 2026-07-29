@@ -1,6 +1,8 @@
 from typing import Literal, TypedDict
 from langgraph.graph import StateGraph, END
+from sqlalchemy.orm import Session
 from app.services.llm import LLMRouter
+from app.agents.diagnosis import diagnosis_node
 
 
 class AgentState(TypedDict):
@@ -56,7 +58,7 @@ def _extract_citations(knowledge_context: list) -> list[dict]:
     return citations
 
 
-def build_supervisor_graph(llm: LLMRouter = None):
+def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
     llm = llm or LLMRouter()
 
     async def detect_intent(state: AgentState) -> AgentState:
@@ -86,18 +88,23 @@ def build_supervisor_graph(llm: LLMRouter = None):
         state["messages"].append({"role": "assistant", "content": reply})
         return state
 
-    def router_condition(state: AgentState) -> Literal["knowledge", "general"]:
+    async def diagnosis_wrapper(state: AgentState) -> AgentState:
+        return await diagnosis_node(state, llm, session)
+
+    def router_condition(
+        state: AgentState,
+    ) -> Literal["knowledge", "diagnosis", "general"]:
         intent = state.get("user_intent", "general")
-        if intent == "diagnosis":
-            return "general"
         return intent
 
     graph = StateGraph(AgentState)
     graph.add_node("detect_intent", detect_intent)
     graph.add_node("knowledge", knowledge_node)
+    graph.add_node("diagnosis", diagnosis_wrapper)
     graph.add_node("general", general_node)
     graph.set_entry_point("detect_intent")
     graph.add_conditional_edges("detect_intent", router_condition)
     graph.add_edge("knowledge", END)
+    graph.add_edge("diagnosis", END)
     graph.add_edge("general", END)
     return graph.compile()

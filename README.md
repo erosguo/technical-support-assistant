@@ -28,11 +28,12 @@
 | -------------------- | ------------------------------------------------------------- |
 | 🔍 **智能知识检索**  | 基于 RAG 的知识库问答，支持向量检索、余弦相似度匹配和引用溯源 |
 | 📝 **文本分块**      | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
-| 🩺 **错误诊断**      | 基于正则模式匹配的错误诊断，支持严重等级排序和解决方案推荐    |
+| 🩺 **故障诊断**      | AI 驱动的故障诊断，结合模式匹配和 LLM 生成诊断建议            |
+| 📋 **工单管理**      | 支持工单创建、查询、更新，多优先级和状态管理                  |
 | 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到知识问答或诊断子 Agent     |
 | 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
 | 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
-| 🖥️ **React 前端**    | 完整的聊天界面，支持会话列表、消息展示、引用标签、流式加载    |
+| 🖥️ **React 前端**    | 完整的聊天/诊断/知识库界面，支持会话、引用标签、流式加载      |
 | 🏥 **健康检查**      | API 健康监控，快速定位服务状态                                |
 | 🧪 **TDD 驱动**      | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
 
@@ -103,12 +104,14 @@ technical-support-assistant/
 ├── backend/                              # 后端应用
 │   ├── app/
 │   │   ├── agents/                       # AI Agent 定义
-│   │   │   └── supervisor.py            #   Supervisor Agent
+│   │   │   ├── supervisor.py            #   Supervisor Agent
+│   │   │   └── diagnosis.py             #   故障诊断 Agent
 │   │   ├── api/                          # API 路由层
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   聊天 API
 │   │   │       ├── health.py           #   健康检查
-│   │   │       └── knowledge.py        #   知识库 API
+│   │   │       ├── knowledge.py        #   知识库 API
+│   │   │       └── diagnosis.py         #   诊断 API
 │   │   ├── core/                         # 核心配置
 │   │   │   └── config.py               #   全局设置
 │   │   ├── db/                           # 数据库层
@@ -118,33 +121,41 @@ technical-support-assistant/
 │   │   ├── models/                       # 数据模型
 │   │   │   ├── conversation.py         #   会话模型
 │   │   │   ├── knowledge.py           #   知识库模型
-│   │   │   └── error_pattern.py        #   错误模式模型
+│   │   │   ├── error_pattern.py        #   错误模式模型
+│   │   │   └── ticket.py               #   工单模型
 │   │   ├── services/                     # 业务服务
 │   │   │   ├── knowledge.py            #   知识库服务
 │   │   │   ├── llm.py                  #   LLM 路由
 │   │   │   ├── chunking.py             #   文本分块
 │   │   │   ├── rag.py                  #   RAG 检索
-│   │   │   └── diagnosis.py           #   错误诊断
+│   │   │   ├── diagnosis.py            #   错误诊断
+│   │   │   └── ticket.py               #   工单服务
 │   │   ├── main.py                       #   应用入口
 │   │   └── ...
 │   ├── tests/                            # 测试套件
 │   │   ├── conftest.py                  #   全局 Fixtures
 │   │   ├── mock_providers.py            #   Mock 提供者
 │   │   ├── test_agents/                 #   Agent 测试
+│   │   │   └── test_diagnosis.py       #     诊断 Agent 测试
 │   │   ├── test_api/                    #   API 测试
+│   │   │   └── test_diagnosis.py       #     诊断 API 测试
 │   │   ├── test_db/                     #   数据库测试
-│   │   │   └── test_error_pattern.py   #     错误模式测试
+│   │   │   ├── test_error_pattern.py   #     错误模式测试
+│   │   │   └── test_ticket.py          #     工单模型测试
 │   │   └── test_services/              #   服务测试
-│   │       └── test_diagnosis.py       #     诊断服务测试
+│   │       ├── test_diagnosis.py       #     诊断服务测试
+│   │       └── test_ticket.py          #     工单服务测试
 │   ├── alembic/                          # 数据库迁移
 │   └── pyproject.toml                   # 项目配置
 ├── frontend/                             # 前端应用
 │   ├── src/
 │   │   ├── pages/                        #   页面组件
 │   │   │   ├── ChatPage.tsx            #     聊天页面
+│   │   │   ├── DiagnosisPage.tsx       #     故障诊断页面
 │   │   │   └── KnowledgeBasePage.tsx  #     知识库管理页面
 │   │   ├── services/                     #   API 服务
-│   │   │   └── knowledge.ts            #     知识库 API
+│   │   │   ├── knowledge.ts            #     知识库 API
+│   │   │   └── diagnosis.ts            #     诊断 API
 │   │   ├── store/                        #   Redux Store
 │   │   │   ├── index.ts               #     Store 配置
 │   │   │   └── conversationSlice.ts   #     会话状态
@@ -424,17 +435,18 @@ LLM_BASE_URL=https://api.openai.com/v1
 
 ### ✨ Key Features
 
-| Feature                                | Description                                                       |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations |
-| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap   |
-| 🩺 **Error Diagnosis**                 | Regex-based error pattern matching with severity ordering         |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or diagnosis agents   |
-| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display        |
-| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD           |
-| 🖥️ **React Frontend**                  | Complete chat interface with conversation list and citations      |
-| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics               |
-| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services           |
+| Feature                                | Description                                                         |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations   |
+| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap     |
+| 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions |
+| 📋 **Ticket Management**               | Create, query, update tickets with priority and status management   |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or diagnosis agents     |
+| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display          |
+| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD             |
+| 🖥️ **React Frontend**                  | Complete chat/diagnosis/knowledge base interface                    |
+| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                 |
+| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services             |
 
 ### 🏗️ Architecture
 
@@ -504,12 +516,14 @@ technical-support-assistant/
 ├── backend/                              # Backend Application
 │   ├── app/
 │   │   ├── agents/                       # AI Agent definitions
-│   │   │   └── supervisor.py            #   Supervisor Agent
+│   │   │   ├── supervisor.py            #   Supervisor Agent
+│   │   │   └── diagnosis.py             #   Diagnosis Agent
 │   │   ├── api/                          # API routes
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   Chat API
 │   │   │       ├── health.py           #   Health check
-│   │   │       └── knowledge.py        #   Knowledge API
+│   │   │       ├── knowledge.py        #   Knowledge API
+│   │   │       └── diagnosis.py         #   Diagnosis API
 │   │   ├── core/                         # Core configuration
 │   │   │   └── config.py               #   Global settings
 │   │   ├── db/                           # Database layer
@@ -519,33 +533,41 @@ technical-support-assistant/
 │   │   ├── models/                       # Data models
 │   │   │   ├── conversation.py         #   Conversation model
 │   │   │   ├── knowledge.py           #   Knowledge model
-│   │   │   └── error_pattern.py        #   Error pattern model
+│   │   │   ├── error_pattern.py        #   Error pattern model
+│   │   │   └── ticket.py               #   Ticket model
 │   │   ├── services/                     # Business services
 │   │   │   ├── knowledge.py            #   Knowledge service
 │   │   │   ├── llm.py                  #   LLM router
 │   │   │   ├── chunking.py             #   Text chunking
 │   │   │   ├── rag.py                  #   RAG retrieval
-│   │   │   └── diagnosis.py           #   Error diagnosis
+│   │   │   ├── diagnosis.py            #   Error diagnosis
+│   │   │   └── ticket.py               #   Ticket service
 │   │   ├── main.py                       #   Application entry
 │   │   └── ...
 │   ├── tests/                            # Test suite
 │   │   ├── conftest.py                  #   Global fixtures
 │   │   ├── mock_providers.py            #   Mock providers
 │   │   ├── test_agents/                 #   Agent tests
+│   │   │   └── test_diagnosis.py       #     Diagnosis agent tests
 │   │   ├── test_api/                    #   API tests
+│   │   │   └── test_diagnosis.py       #     Diagnosis API tests
 │   │   ├── test_db/                     #   Database tests
-│   │   │   └── test_error_pattern.py   #     Error pattern tests
+│   │   │   ├── test_error_pattern.py   #     Error pattern tests
+│   │   │   └── test_ticket.py          #     Ticket model tests
 │   │   └── test_services/              #   Service tests
-│   │       └── test_diagnosis.py       #     Diagnosis service tests
+│   │       ├── test_diagnosis.py       #     Diagnosis service tests
+│   │       └── test_ticket.py          #     Ticket service tests
 │   ├── alembic/                          # Database migrations
 │   └── pyproject.toml                   # Project config
 ├── frontend/                             # Frontend Application
 │   ├── src/
 │   │   ├── pages/                        #   Page components
 │   │   │   ├── ChatPage.tsx            #     Chat page
+│   │   │   ├── DiagnosisPage.tsx       #     Fault diagnosis page
 │   │   │   └── KnowledgeBasePage.tsx  #     Knowledge base management
 │   │   ├── services/                     #   API services
-│   │   │   └── knowledge.ts            #     Knowledge API
+│   │   │   ├── knowledge.ts            #     Knowledge API
+│   │   │   └── diagnosis.ts            #     Diagnosis API
 │   │   ├── store/                        #   Redux Store
 │   │   │   ├── index.ts               #     Store config
 │   │   │   └── conversationSlice.ts   #     Conversation state
