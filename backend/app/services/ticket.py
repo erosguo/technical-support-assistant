@@ -55,3 +55,12 @@ def update_ticket(session: Session, ticket_id: str, **updates) -> Ticket | None:
     session.commit()
     session.refresh(ticket)
     return ticket
+
+
+def delete_ticket(session: Session, ticket_id: str) -> bool:
+    ticket = session.get(Ticket, ticket_id)
+    if not ticket:
+        return False
+    session.delete(ticket)
+    session.commit()
+    return True

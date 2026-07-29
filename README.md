@@ -105,13 +105,15 @@ technical-support-assistant/
 │   ├── app/
 │   │   ├── agents/                       # AI Agent 定义
 │   │   │   ├── supervisor.py            #   Supervisor Agent
-│   │   │   └── diagnosis.py             #   故障诊断 Agent
+│   │   │   ├── diagnosis.py             #   故障诊断 Agent
+│   │   │   └── ticket_agent.py          #   工单管理 Agent
 │   │   ├── api/                          # API 路由层
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   聊天 API
 │   │   │       ├── health.py           #   健康检查
 │   │   │       ├── knowledge.py        #   知识库 API
-│   │   │       └── diagnosis.py         #   诊断 API
+│   │   │       ├── diagnosis.py         #   诊断 API
+│   │   │       └── ticket.py            #   工单 API
 │   │   ├── core/                         # 核心配置
 │   │   │   └── config.py               #   全局设置
 │   │   ├── db/                           # 数据库层
@@ -136,9 +138,11 @@ technical-support-assistant/
 │   │   ├── conftest.py                  #   全局 Fixtures
 │   │   ├── mock_providers.py            #   Mock 提供者
 │   │   ├── test_agents/                 #   Agent 测试
-│   │   │   └── test_diagnosis.py       #     诊断 Agent 测试
+│   │   │   ├── test_diagnosis.py       #     诊断 Agent 测试
+│   │   │   └── test_ticket_agent.py    #     工单 Agent 测试
 │   │   ├── test_api/                    #   API 测试
-│   │   │   └── test_diagnosis.py       #     诊断 API 测试
+│   │   │   ├── test_diagnosis.py       #     诊断 API 测试
+│   │   │   └── test_ticket.py          #     工单 API 测试
 │   │   ├── test_db/                     #   数据库测试
 │   │   │   ├── test_error_pattern.py   #     错误模式测试
 │   │   │   └── test_ticket.py          #     工单模型测试
@@ -152,10 +156,12 @@ technical-support-assistant/
 │   │   ├── pages/                        #   页面组件
 │   │   │   ├── ChatPage.tsx            #     聊天页面
 │   │   │   ├── DiagnosisPage.tsx       #     故障诊断页面
+│   │   │   ├── TicketPage.tsx          #     工单管理页面
 │   │   │   └── KnowledgeBasePage.tsx  #     知识库管理页面
 │   │   ├── services/                     #   API 服务
 │   │   │   ├── knowledge.ts            #     知识库 API
-│   │   │   └── diagnosis.ts            #     诊断 API
+│   │   │   ├── diagnosis.ts            #     诊断 API
+│   │   │   └── ticket.ts               #     工单 API
 │   │   ├── store/                        #   Redux Store
 │   │   │   ├── index.ts               #     Store 配置
 │   │   │   └── conversationSlice.ts   #     会话状态
@@ -517,13 +523,15 @@ technical-support-assistant/
 │   ├── app/
 │   │   ├── agents/                       # AI Agent definitions
 │   │   │   ├── supervisor.py            #   Supervisor Agent
-│   │   │   └── diagnosis.py             #   Diagnosis Agent
+│   │   │   ├── diagnosis.py             #   Diagnosis Agent
+│   │   │   └── ticket_agent.py          #   Ticket Agent
 │   │   ├── api/                          # API routes
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   Chat API
 │   │   │       ├── health.py           #   Health check
 │   │   │       ├── knowledge.py        #   Knowledge API
-│   │   │       └── diagnosis.py         #   Diagnosis API
+│   │   │       ├── diagnosis.py         #   Diagnosis API
+│   │   │       └── ticket.py            #   Ticket API
 │   │   ├── core/                         # Core configuration
 │   │   │   └── config.py               #   Global settings
 │   │   ├── db/                           # Database layer
@@ -548,9 +556,11 @@ technical-support-assistant/
 │   │   ├── conftest.py                  #   Global fixtures
 │   │   ├── mock_providers.py            #   Mock providers
 │   │   ├── test_agents/                 #   Agent tests
-│   │   │   └── test_diagnosis.py       #     Diagnosis agent tests
+│   │   │   ├── test_diagnosis.py       #     Diagnosis agent tests
+│   │   │   └── test_ticket_agent.py    #     Ticket agent tests
 │   │   ├── test_api/                    #   API tests
-│   │   │   └── test_diagnosis.py       #     Diagnosis API tests
+│   │   │   ├── test_diagnosis.py       #     Diagnosis API tests
+│   │   │   └── test_ticket.py          #     Ticket API tests
 │   │   ├── test_db/                     #   Database tests
 │   │   │   ├── test_error_pattern.py   #     Error pattern tests
 │   │   │   └── test_ticket.py          #     Ticket model tests
@@ -564,10 +574,12 @@ technical-support-assistant/
 │   │   ├── pages/                        #   Page components
 │   │   │   ├── ChatPage.tsx            #     Chat page
 │   │   │   ├── DiagnosisPage.tsx       #     Fault diagnosis page
+│   │   │   ├── TicketPage.tsx          #     Ticket management page
 │   │   │   └── KnowledgeBasePage.tsx  #     Knowledge base management
 │   │   ├── services/                     #   API services
 │   │   │   ├── knowledge.ts            #     Knowledge API
-│   │   │   └── diagnosis.ts            #     Diagnosis API
+│   │   │   ├── diagnosis.ts            #     Diagnosis API
+│   │   │   └── ticket.ts               #     Ticket API
 │   │   ├── store/                        #   Redux Store
 │   │   │   ├── index.ts               #     Store config
 │   │   │   └── conversationSlice.ts   #     Conversation state

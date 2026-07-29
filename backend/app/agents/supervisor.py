@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, END
 from sqlalchemy.orm import Session
 from app.services.llm import LLMRouter
 from app.agents.diagnosis import diagnosis_node
+from app.agents.ticket_agent import ticket_node
 
 
 class AgentState(TypedDict):
@@ -17,6 +18,7 @@ class AgentState(TypedDict):
 INTENT_PROMPT = """分析用户问题的意图，只返回一个词：
 - knowledge: 知识问答、产品使用问题
 - diagnosis: 故障排查、报错分析
+- ticket: 工单管理（创建、查看、更新工单）
 - general: 一般性对话
 问题：{query}"""
 
@@ -69,7 +71,7 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
             max_tokens=20,
         )
         state["user_intent"] = intent.strip().lower()
-        if state["user_intent"] not in ("knowledge", "diagnosis"):
+        if state["user_intent"] not in ("knowledge", "diagnosis", "ticket"):
             state["user_intent"] = "general"
         return state
 
@@ -91,9 +93,12 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
     async def diagnosis_wrapper(state: AgentState) -> AgentState:
         return await diagnosis_node(state, llm, session)
 
+    async def ticket_wrapper(state: AgentState) -> AgentState:
+        return await ticket_node(state, llm, session)
+
     def router_condition(
         state: AgentState,
-    ) -> Literal["knowledge", "diagnosis", "general"]:
+    ) -> Literal["knowledge", "diagnosis", "ticket", "general"]:
         intent = state.get("user_intent", "general")
         return intent
 
@@ -101,10 +106,12 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
     graph.add_node("detect_intent", detect_intent)
     graph.add_node("knowledge", knowledge_node)
     graph.add_node("diagnosis", diagnosis_wrapper)
+    graph.add_node("ticket", ticket_wrapper)
     graph.add_node("general", general_node)
     graph.set_entry_point("detect_intent")
     graph.add_conditional_edges("detect_intent", router_condition)
     graph.add_edge("knowledge", END)
     graph.add_edge("diagnosis", END)
+    graph.add_edge("ticket", END)
     graph.add_edge("general", END)
     return graph.compile()
