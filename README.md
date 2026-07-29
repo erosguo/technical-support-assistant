@@ -30,10 +30,12 @@
 | 📝 **文本分块**      | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
 | 🩺 **故障诊断**      | AI 驱动的故障诊断，结合模式匹配和 LLM 生成诊断建议            |
 | 📋 **工单管理**      | 支持工单创建、查询、更新，多优先级和状态管理                  |
-| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到知识问答或诊断子 Agent     |
+| 📊 **数据分析**      | 查询对话统计、消息统计、知识库统计，生成数据摘要              |
+| ⚠️ **智能升级**      | 自动识别高危问题，创建升级工单并通知相关工程师                |
+| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到对应子 Agent               |
 | 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
 | 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
-| 🖥️ **React 前端**    | 完整的聊天/诊断/知识库界面，支持会话、引用标签、流式加载      |
+| 🖥️ **React 前端**    | 完整的聊天/诊断/工单/知识库界面                               |
 | 🏥 **健康检查**      | API 健康监控，快速定位服务状态                                |
 | 🧪 **TDD 驱动**      | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
 
@@ -106,7 +108,9 @@ technical-support-assistant/
 │   │   ├── agents/                       # AI Agent 定义
 │   │   │   ├── supervisor.py            #   Supervisor Agent
 │   │   │   ├── diagnosis.py             #   故障诊断 Agent
-│   │   │   └── ticket_agent.py          #   工单管理 Agent
+│   │   │   ├── ticket_agent.py          #   工单管理 Agent
+│   │   │   ├── data.py                  #   数据分析 Agent
+│   │   │   └── escalation.py            #   升级处理 Agent
 │   │   ├── api/                          # API 路由层
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   聊天 API
@@ -131,7 +135,8 @@ technical-support-assistant/
 │   │   │   ├── chunking.py             #   文本分块
 │   │   │   ├── rag.py                  #   RAG 检索
 │   │   │   ├── diagnosis.py            #   错误诊断
-│   │   │   └── ticket.py               #   工单服务
+│   │   │   ├── ticket.py               #   工单服务
+│   │   │   └── data_query.py           #   数据查询服务
 │   │   ├── main.py                       #   应用入口
 │   │   └── ...
 │   ├── tests/                            # 测试套件
@@ -139,7 +144,11 @@ technical-support-assistant/
 │   │   ├── mock_providers.py            #   Mock 提供者
 │   │   ├── test_agents/                 #   Agent 测试
 │   │   │   ├── test_diagnosis.py       #     诊断 Agent 测试
-│   │   │   └── test_ticket_agent.py    #     工单 Agent 测试
+│   │   │   ├── test_ticket_agent.py    #     工单 Agent 测试
+│   │   │   ├── test_data.py            #     数据分析 Agent 测试
+│   │   │   ├── test_escalation.py      #     升级处理 Agent 测试
+│   │   │   ├── test_collaboration.py   #     多 Agent 协作测试
+│   │   │   └── test_interrupt.py       #     中断/升级流程测试
 │   │   ├── test_api/                    #   API 测试
 │   │   │   ├── test_diagnosis.py       #     诊断 API 测试
 │   │   │   └── test_ticket.py          #     工单 API 测试
@@ -148,7 +157,8 @@ technical-support-assistant/
 │   │   │   └── test_ticket.py          #     工单模型测试
 │   │   └── test_services/              #   服务测试
 │   │       ├── test_diagnosis.py       #     诊断服务测试
-│   │       └── test_ticket.py          #     工单服务测试
+│   │       ├── test_ticket.py          #     工单服务测试
+│   │       └── test_data_query.py      #     数据查询服务测试
 │   ├── alembic/                          # 数据库迁移
 │   └── pyproject.toml                   # 项目配置
 ├── frontend/                             # 前端应用
@@ -447,10 +457,12 @@ LLM_BASE_URL=https://api.openai.com/v1
 | 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap     |
 | 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions |
 | 📋 **Ticket Management**               | Create, query, update tickets with priority and status management   |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to knowledge or diagnosis agents     |
+| 📊 **Data Analytics**                  | Query conversation, message, and knowledge base statistics          |
+| ⚠️ **Smart Escalation**                | Auto-identify critical issues, create escalation tickets and notify |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to specialized sub-agents            |
 | 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display          |
 | 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD             |
-| 🖥️ **React Frontend**                  | Complete chat/diagnosis/knowledge base interface                    |
+| 🖥️ **React Frontend**                  | Complete chat/diagnosis/ticket/knowledge base interface             |
 | 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                 |
 | 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services             |
 
@@ -524,7 +536,9 @@ technical-support-assistant/
 │   │   ├── agents/                       # AI Agent definitions
 │   │   │   ├── supervisor.py            #   Supervisor Agent
 │   │   │   ├── diagnosis.py             #   Diagnosis Agent
-│   │   │   └── ticket_agent.py          #   Ticket Agent
+│   │   │   ├── ticket_agent.py          #   Ticket Agent
+│   │   │   ├── data.py                  #   Data Analytics Agent
+│   │   │   └── escalation.py            #   Escalation Agent
 │   │   ├── api/                          # API routes
 │   │   │   └── v1/
 │   │   │       ├── chat.py              #   Chat API
@@ -549,7 +563,8 @@ technical-support-assistant/
 │   │   │   ├── chunking.py             #   Text chunking
 │   │   │   ├── rag.py                  #   RAG retrieval
 │   │   │   ├── diagnosis.py            #   Error diagnosis
-│   │   │   └── ticket.py               #   Ticket service
+│   │   │   ├── ticket.py               #   Ticket service
+│   │   │   └── data_query.py           #   Data query service
 │   │   ├── main.py                       #   Application entry
 │   │   └── ...
 │   ├── tests/                            # Test suite
@@ -557,7 +572,11 @@ technical-support-assistant/
 │   │   ├── mock_providers.py            #   Mock providers
 │   │   ├── test_agents/                 #   Agent tests
 │   │   │   ├── test_diagnosis.py       #     Diagnosis agent tests
-│   │   │   └── test_ticket_agent.py    #     Ticket agent tests
+│   │   │   ├── test_ticket_agent.py    #     Ticket agent tests
+│   │   │   ├── test_data.py            #     Data analytics agent tests
+│   │   │   ├── test_escalation.py      #     Escalation agent tests
+│   │   │   ├── test_collaboration.py   #     Multi-agent collaboration tests
+│   │   │   └── test_interrupt.py       #     Interrupt/escalation flow tests
 │   │   ├── test_api/                    #   API tests
 │   │   │   ├── test_diagnosis.py       #     Diagnosis API tests
 │   │   │   └── test_ticket.py          #     Ticket API tests
@@ -566,7 +585,8 @@ technical-support-assistant/
 │   │   │   └── test_ticket.py          #     Ticket model tests
 │   │   └── test_services/              #   Service tests
 │   │       ├── test_diagnosis.py       #     Diagnosis service tests
-│   │       └── test_ticket.py          #     Ticket service tests
+│   │       ├── test_ticket.py          #     Ticket service tests
+│   │       └── test_data_query.py      #     Data query service tests
 │   ├── alembic/                          # Database migrations
 │   └── pyproject.toml                   # Project config
 ├── frontend/                             # Frontend Application

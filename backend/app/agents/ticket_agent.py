@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.services.ticket import list_tickets
+from app.services.ticket import list_tickets, create_ticket
 
 TICKET_PROMPT = """你是工单管理助手。根据用户请求执行工单操作。
 
@@ -25,22 +25,36 @@ def _extract_ticket_action(query: str) -> str:
 
 
 async def ticket_node(state: dict, llm, session: Session = None) -> dict:
+    escalation_ctx = state.get("sub_agent_outputs", {}).get("escalation", {})
     query = state["messages"][-1]["content"]
-    action = _extract_ticket_action(query)
 
     output = {}
 
-    if session is not None:
-        if action == "list":
-            tickets = list_tickets(session)
-            output["tickets"] = [
-                {"id": str(t.id), "title": t.title, "status": t.status} for t in tickets
-            ]
-        elif action == "update":
-            tickets = list_tickets(session)
-            output["tickets"] = [
-                {"id": str(t.id), "title": t.title, "status": t.status} for t in tickets
-            ]
+    if escalation_ctx.get("escalated") and session is not None:
+        ticket = create_ticket(
+            session=session,
+            title=escalation_ctx.get("escalation_title", query[:50]),
+            description=escalation_ctx.get("escalation_description", query),
+            priority="high",
+            source="escalation",
+        )
+        output["created_by_escalation"] = True
+        output["ticket_id"] = str(ticket.id)
+    else:
+        action = _extract_ticket_action(query)
+        if session is not None:
+            if action == "list":
+                tickets = list_tickets(session)
+                output["tickets"] = [
+                    {"id": str(t.id), "title": t.title, "status": t.status}
+                    for t in tickets
+                ]
+            elif action == "update":
+                tickets = list_tickets(session)
+                output["tickets"] = [
+                    {"id": str(t.id), "title": t.title, "status": t.status}
+                    for t in tickets
+                ]
 
     prompt = TICKET_PROMPT.format(query=query)
     reply = await llm.chat(messages=[{"role": "user", "content": prompt}])

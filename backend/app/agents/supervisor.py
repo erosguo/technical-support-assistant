@@ -1,9 +1,12 @@
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, Any
 from langgraph.graph import StateGraph, END
+from langgraph.types import interrupt
 from sqlalchemy.orm import Session
 from app.services.llm import LLMRouter
 from app.agents.diagnosis import diagnosis_node
 from app.agents.ticket_agent import ticket_node
+from app.agents.data import data_node
+from app.agents.escalation import escalation_node
 
 
 class AgentState(TypedDict):
@@ -19,6 +22,7 @@ INTENT_PROMPT = """分析用户问题的意图，只返回一个词：
 - knowledge: 知识问答、产品使用问题
 - diagnosis: 故障排查、报错分析
 - ticket: 工单管理（创建、查看、更新工单）
+- data: 数据统计查询（对话、消息、知识库统计）
 - general: 一般性对话
 问题：{query}"""
 
@@ -60,7 +64,9 @@ def _extract_citations(knowledge_context: list) -> list[dict]:
     return citations
 
 
-def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
+def build_supervisor_graph(
+    llm: LLMRouter = None, session: Session = None, checkpointer: Any = None
+):
     llm = llm or LLMRouter()
 
     async def detect_intent(state: AgentState) -> AgentState:
@@ -71,7 +77,7 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
             max_tokens=20,
         )
         state["user_intent"] = intent.strip().lower()
-        if state["user_intent"] not in ("knowledge", "diagnosis", "ticket"):
+        if state["user_intent"] not in ("knowledge", "diagnosis", "ticket", "data"):
             state["user_intent"] = "general"
         return state
 
@@ -96,9 +102,48 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
     async def ticket_wrapper(state: AgentState) -> AgentState:
         return await ticket_node(state, llm, session)
 
+    async def data_wrapper(state: AgentState) -> AgentState:
+        return await data_node(state, llm, session)
+
+    async def escalation_wrapper(state: AgentState) -> AgentState:
+        return await escalation_node(state, llm, session)
+
+    def diagnosis_router(state: AgentState) -> Literal["escalation", "__end__"]:
+        diag = state.get("sub_agent_outputs", {}).get("diagnosis", {})
+        if diag.get("needs_escalation"):
+            return "escalation"
+        return END
+
+    async def human_approval_node(state: AgentState) -> AgentState:
+        esc = state.get("sub_agent_outputs", {}).get("escalation", {})
+        decision = interrupt(
+            {
+                "type": "escalation_approval",
+                "title": esc.get("escalation_title", ""),
+                "description": esc.get("escalation_description", ""),
+                "question": "是否批准升级到 L2 工程师？",
+            }
+        )
+        state["sub_agent_outputs"]["human_decision"] = (
+            "approved" if decision.get("approved") else "rejected"
+        )
+        return state
+
+    def escalation_router(state: AgentState) -> Literal["human_approval", "__end__"]:
+        esc = state.get("sub_agent_outputs", {}).get("escalation", {})
+        if esc.get("escalated"):
+            return "human_approval"
+        return END
+
+    def human_approval_router(state: AgentState) -> Literal["ticket", "__end__"]:
+        decision = state.get("sub_agent_outputs", {}).get("human_decision", "")
+        if decision == "approved":
+            return "ticket"
+        return END
+
     def router_condition(
         state: AgentState,
-    ) -> Literal["knowledge", "diagnosis", "ticket", "general"]:
+    ) -> Literal["knowledge", "diagnosis", "ticket", "data", "general"]:
         intent = state.get("user_intent", "general")
         return intent
 
@@ -107,11 +152,17 @@ def build_supervisor_graph(llm: LLMRouter = None, session: Session = None):
     graph.add_node("knowledge", knowledge_node)
     graph.add_node("diagnosis", diagnosis_wrapper)
     graph.add_node("ticket", ticket_wrapper)
+    graph.add_node("data", data_wrapper)
+    graph.add_node("escalation", escalation_wrapper)
+    graph.add_node("human_approval", human_approval_node)
     graph.add_node("general", general_node)
     graph.set_entry_point("detect_intent")
     graph.add_conditional_edges("detect_intent", router_condition)
+    graph.add_conditional_edges("diagnosis", diagnosis_router)
+    graph.add_conditional_edges("escalation", escalation_router)
+    graph.add_conditional_edges("human_approval", human_approval_router)
     graph.add_edge("knowledge", END)
-    graph.add_edge("diagnosis", END)
     graph.add_edge("ticket", END)
+    graph.add_edge("data", END)
     graph.add_edge("general", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
