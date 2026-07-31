@@ -2,6 +2,8 @@ import asyncio
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.db.session import get_session
@@ -12,6 +14,8 @@ from app.services.knowledge import search_knowledge
 from app.services.llm import LLMRouter
 
 router = APIRouter()
+
+checkpointer = MemorySaver()
 
 
 def _conv_to_dict(conv: Conversation) -> dict:
@@ -104,28 +108,37 @@ def chat_completion(req: dict, session: Session = Depends(get_session)):
         if settings.llm_api_key
         else []
     )
-    graph = build_supervisor_graph()
+    graph = build_supervisor_graph(session=session, checkpointer=checkpointer)
     state = {
         "messages": [{"role": "user", "content": content}],
         "user_intent": "",
         "sub_agent_outputs": {},
         "knowledge_context": ctx,
-        "error_info": "",
+        "error_info": content,
     }
 
     async def run_agent():
-        full_content = ""
-        citations = []
-        async for chunk in graph.astream(state):
-            for node_output in chunk.values():
-                msgs = node_output.get("messages", [])
-                for msg in msgs:
-                    if msg["role"] == "assistant":
-                        full_content = msg["content"]
-                citations = node_output.get("citations", [])
-        return full_content, citations
+        return await graph.ainvoke(
+            state, config={"configurable": {"thread_id": str(conv_id)}}
+        )
 
-    full_content, citations = asyncio.run(run_agent())
+    result = asyncio.run(run_agent())
+    interrupts = result.get("__interrupt__", [])
+
+    if interrupts:
+        payload = getattr(interrupts[0], "value", interrupts[0])
+
+        def interrupt_stream():
+            yield f"data: {json.dumps({'interrupt': payload, 'conversation_id': str(conv_id)})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(interrupt_stream(), media_type="text/event-stream")
+
+    full_content = ""
+    for msg in result.get("messages", []):
+        if msg["role"] == "assistant":
+            full_content = msg["content"]
+    citations = result.get("citations", [])
     sources = citations or ctx
 
     def event_stream():
@@ -138,7 +151,52 @@ def chat_completion(req: dict, session: Session = Depends(get_session)):
         conversation_id=conv_id,
         role="assistant",
         content=full_content,
-        agent_name=state.get("user_intent", "general"),
+        agent_name=result.get("user_intent", "general"),
+        sources=sources,
+    )
+    session.add(msg)
+    session.commit()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/completions/resume")
+def chat_resume(req: dict, session: Session = Depends(get_session)):
+    conv_id = req.get("conversation_id")
+    approved = bool(req.get("approved", False))
+    if not conv_id:
+        raise HTTPException(400, "缺少 conversation_id")
+
+    graph = build_supervisor_graph(session=session, checkpointer=checkpointer)
+
+    async def run_resume():
+        return await graph.ainvoke(
+            Command(resume={"approved": approved}),
+            config={"configurable": {"thread_id": str(conv_id)}},
+        )
+
+    result = asyncio.run(run_resume())
+
+    full_content = ""
+    for msg in result.get("messages", []):
+        if msg["role"] == "assistant":
+            full_content = msg["content"]
+    citations = result.get("citations", [])
+    sources = citations or []
+    decision = result.get("sub_agent_outputs", {}).get("human_decision", "rejected")
+
+    def event_stream():
+        yield f"data: {json.dumps({'content': full_content, 'conversation_id': str(conv_id)})}\n\n"
+        if sources:
+            yield f"data: {json.dumps({'citations': sources})}\n\n"
+        yield f"data: {json.dumps({'decision': decision})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    msg = Message(
+        conversation_id=conv_id,
+        role="assistant",
+        content=full_content,
+        agent_name="escalation",
         sources=sources,
     )
     session.add(msg)

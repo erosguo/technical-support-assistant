@@ -32,10 +32,11 @@
 | 📋 **工单管理**      | 支持工单创建、查询、更新，多优先级和状态管理                  |
 | 📊 **数据分析**      | 查询对话统计、消息统计、知识库统计，生成数据摘要              |
 | ⚠️ **智能升级**      | 自动识别高危问题，创建升级工单并通知相关工程师                |
+| 🤝 **人工审批**      | Human-in-the-Loop，高危升级需人工确认，支持批准/拒绝          |
 | 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到对应子 Agent               |
 | 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
 | 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
-| 🖥️ **React 前端**    | 完整的聊天/诊断/工单/知识库界面                               |
+| 🖥️ **React 前端**    | 完整的聊天/诊断/工单/知识库界面，支持升级审批弹窗             |
 | 🏥 **健康检查**      | API 健康监控，快速定位服务状态                                |
 | 🧪 **TDD 驱动**      | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
 
@@ -151,7 +152,8 @@ technical-support-assistant/
 │   │   │   └── test_interrupt.py       #     中断/升级流程测试
 │   │   ├── test_api/                    #   API 测试
 │   │   │   ├── test_diagnosis.py       #     诊断 API 测试
-│   │   │   └── test_ticket.py          #     工单 API 测试
+│   │   │   ├── test_ticket.py          #     工单 API 测试
+│   │   │   └── test_chat_interrupt.py #     聊天中断/恢复 API 测试
 │   │   ├── test_db/                     #   数据库测试
 │   │   │   ├── test_error_pattern.py   #     错误模式测试
 │   │   │   └── test_ticket.py          #     工单模型测试
@@ -263,24 +265,25 @@ curl http://localhost:8000/api/v1/health
 
 #### API 列表
 
-| 方法         | 路径                                       | 说明                 |
-| ------------ | ------------------------------------------ | -------------------- |
-| **健康检查** |                                            |                      |
-| GET          | `/api/v1/health`                           | 服务健康检查         |
-| **会话管理** |                                            |                      |
-| GET          | `/api/v1/chat/conversations`               | 获取会话列表         |
-| POST         | `/api/v1/chat/conversations`               | 创建新会话           |
-| GET          | `/api/v1/chat/conversations/{id}`          | 获取会话详情         |
-| DELETE       | `/api/v1/chat/conversations/{id}`          | 删除会话             |
-| GET          | `/api/v1/chat/conversations/{id}/messages` | 获取会话消息         |
-| **聊天对话** |                                            |                      |
-| POST         | `/api/v1/chat/completions`                 | 发送消息（SSE 流式） |
-| **知识库**   |                                            |                      |
-| POST         | `/api/v1/knowledge/documents`              | 上传文档             |
-| GET          | `/api/v1/knowledge/documents`              | 文档列表             |
-| GET          | `/api/v1/knowledge/documents/{id}`         | 文档详情             |
-| DELETE       | `/api/v1/knowledge/documents/{id}`         | 删除文档             |
-| POST         | `/api/v1/knowledge/search`                 | 搜索知识库           |
+| 方法         | 路径                                       | 说明                          |
+| ------------ | ------------------------------------------ | ----------------------------- |
+| **健康检查** |                                            |                               |
+| GET          | `/api/v1/health`                           | 服务健康检查                  |
+| **会话管理** |                                            |                               |
+| GET          | `/api/v1/chat/conversations`               | 获取会话列表                  |
+| POST         | `/api/v1/chat/conversations`               | 创建新会话                    |
+| GET          | `/api/v1/chat/conversations/{id}`          | 获取会话详情                  |
+| DELETE       | `/api/v1/chat/conversations/{id}`          | 删除会话                      |
+| GET          | `/api/v1/chat/conversations/{id}/messages` | 获取会话消息                  |
+| **聊天对话** |                                            |                               |
+| POST         | `/api/v1/chat/completions`                 | 发送消息（SSE 流式）          |
+| POST         | `/api/v1/chat/completions/resume`          | 恢复中断对话（批准/拒绝升级） |
+| **知识库**   |                                            |                               |
+| POST         | `/api/v1/knowledge/documents`              | 上传文档                      |
+| GET          | `/api/v1/knowledge/documents`              | 文档列表                      |
+| GET          | `/api/v1/knowledge/documents/{id}`         | 文档详情                      |
+| DELETE       | `/api/v1/knowledge/documents/{id}`         | 删除文档                      |
+| POST         | `/api/v1/knowledge/search`                 | 搜索知识库                    |
 
 #### 请求示例
 
@@ -307,6 +310,28 @@ curl -X POST http://localhost:8000/api/v1/knowledge/documents \
 
 ```bash
 curl "http://localhost:8000/api/v1/knowledge/search?query=SSL&top_k=5"
+```
+
+**恢复中断对话（批准升级）**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/completions/resume \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv-uuid",
+    "approved": true
+  }'
+```
+
+**恢复中断对话（拒绝升级）**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/completions/resume \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv-uuid",
+    "approved": false
+  }'
 ```
 
 ### 🧪 测试
@@ -451,20 +476,21 @@ LLM_BASE_URL=https://api.openai.com/v1
 
 ### ✨ Key Features
 
-| Feature                                | Description                                                         |
-| -------------------------------------- | ------------------------------------------------------------------- |
-| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations   |
-| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap     |
-| 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions |
-| 📋 **Ticket Management**               | Create, query, update tickets with priority and status management   |
-| 📊 **Data Analytics**                  | Query conversation, message, and knowledge base statistics          |
-| ⚠️ **Smart Escalation**                | Auto-identify critical issues, create escalation tickets and notify |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to specialized sub-agents            |
-| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display          |
-| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD             |
-| 🖥️ **React Frontend**                  | Complete chat/diagnosis/ticket/knowledge base interface             |
-| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                 |
-| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services             |
+| Feature                                | Description                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations           |
+| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap             |
+| 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions         |
+| 📋 **Ticket Management**               | Create, query, update tickets with priority and status management           |
+| 📊 **Data Analytics**                  | Query conversation, message, and knowledge base statistics                  |
+| ⚠️ **Smart Escalation**                | Auto-identify critical issues, create escalation tickets and notify         |
+| 🤝 **Human-in-the-Loop**               | Manual approval required for high-risk escalation, approve/reject           |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to specialized sub-agents                    |
+| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display                  |
+| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD                     |
+| 🖥️ **React Frontend**                  | Complete chat/diagnosis/ticket/knowledge base interface with approval modal |
+| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                         |
+| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services                     |
 
 ### 🏗️ Architecture
 
@@ -579,7 +605,8 @@ technical-support-assistant/
 │   │   │   └── test_interrupt.py       #     Interrupt/escalation flow tests
 │   │   ├── test_api/                    #   API tests
 │   │   │   ├── test_diagnosis.py       #     Diagnosis API tests
-│   │   │   └── test_ticket.py          #     Ticket API tests
+│   │   │   ├── test_ticket.py          #     Ticket API tests
+│   │   │   └── test_chat_interrupt.py #     Chat interrupt/resume API tests
 │   │   ├── test_db/                     #   Database tests
 │   │   │   ├── test_error_pattern.py   #     Error pattern tests
 │   │   │   └── test_ticket.py          #     Ticket model tests
@@ -691,24 +718,25 @@ After starting the server, visit Swagger UI: `http://localhost:8000/docs`
 
 #### API Endpoints
 
-| Method             | Path                                       | Description                  |
-| ------------------ | ------------------------------------------ | ---------------------------- |
-| **Health**         |                                            |                              |
-| GET                | `/api/v1/health`                           | Service health check         |
-| **Conversations**  |                                            |                              |
-| GET                | `/api/v1/chat/conversations`               | List conversations           |
-| POST               | `/api/v1/chat/conversations`               | Create new conversation      |
-| GET                | `/api/v1/chat/conversations/{id}`          | Get conversation details     |
-| DELETE             | `/api/v1/chat/conversations/{id}`          | Delete conversation          |
-| GET                | `/api/v1/chat/conversations/{id}/messages` | Get conversation messages    |
-| **Chat**           |                                            |                              |
-| POST               | `/api/v1/chat/completions`                 | Send message (SSE streaming) |
-| **Knowledge Base** |                                            |                              |
-| POST               | `/api/v1/knowledge/documents`              | Upload document              |
-| GET                | `/api/v1/knowledge/documents`              | List documents               |
-| GET                | `/api/v1/knowledge/documents/{id}`         | Get document details         |
-| DELETE             | `/api/v1/knowledge/documents/{id}`         | Delete document              |
-| POST               | `/api/v1/knowledge/search`                 | Search knowledge base        |
+| Method             | Path                                       | Description                                         |
+| ------------------ | ------------------------------------------ | --------------------------------------------------- |
+| **Health**         |                                            |                                                     |
+| GET                | `/api/v1/health`                           | Service health check                                |
+| **Conversations**  |                                            |                                                     |
+| GET                | `/api/v1/chat/conversations`               | List conversations                                  |
+| POST               | `/api/v1/chat/conversations`               | Create new conversation                             |
+| GET                | `/api/v1/chat/conversations/{id}`          | Get conversation details                            |
+| DELETE             | `/api/v1/chat/conversations/{id}`          | Delete conversation                                 |
+| GET                | `/api/v1/chat/conversations/{id}/messages` | Get conversation messages                           |
+| **Chat**           |                                            |                                                     |
+| POST               | `/api/v1/chat/completions`                 | Send message (SSE streaming)                        |
+| POST               | `/api/v1/chat/completions/resume`          | Resume interrupted chat (approve/reject escalation) |
+| **Knowledge Base** |                                            |                                                     |
+| POST               | `/api/v1/knowledge/documents`              | Upload document                                     |
+| GET                | `/api/v1/knowledge/documents`              | List documents                                      |
+| GET                | `/api/v1/knowledge/documents/{id}`         | Get document details                                |
+| DELETE             | `/api/v1/knowledge/documents/{id}`         | Delete document                                     |
+| POST               | `/api/v1/knowledge/search`                 | Search knowledge base                               |
 
 #### Request Examples
 
@@ -735,6 +763,28 @@ curl -X POST http://localhost:8000/api/v1/knowledge/documents \
 
 ```bash
 curl "http://localhost:8000/api/v1/knowledge/search?query=SSL&top_k=5"
+```
+
+**Resume interrupted chat (approve escalation)**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/completions/resume \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv-uuid",
+    "approved": true
+  }'
+```
+
+**Resume interrupted chat (reject escalation)**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chat/completions/resume \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv-uuid",
+    "approved": false
+  }'
 ```
 
 ### 🧪 Testing

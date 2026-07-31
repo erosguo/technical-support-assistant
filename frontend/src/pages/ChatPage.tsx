@@ -1,5 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layout, Menu, Button, Input, List, Typography, Empty, Tag, Popconfirm } from 'antd';
+import {
+  Layout,
+  Menu,
+  Button,
+  Input,
+  List,
+  Typography,
+  Empty,
+  Tag,
+  Popconfirm,
+  Modal,
+  Spin,
+  Alert,
+} from 'antd';
 import { PlusOutlined, MessageOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,6 +31,13 @@ const { Sider, Content } = Layout;
 const { Text } = Typography;
 const API_BASE = 'http://localhost:8000/api/v1';
 
+interface ApprovalRequest {
+  type: string;
+  title?: string;
+  description?: string;
+  question?: string;
+}
+
 export default function ChatPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -26,6 +46,8 @@ export default function ChatPage() {
     (s: RootState) => s.conversation,
   );
   const [input, setInput] = useState('');
+  const [approval, setApproval] = useState<ApprovalRequest | null>(null);
+  const [resuming, setResuming] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,6 +78,64 @@ export default function ChatPage() {
     navigate(`/chat/${(res as { payload: { id: string } }).payload.id}`);
   };
 
+  const readStream = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+  ): Promise<{ fullText: string; citations: Citation[]; interrupt: ApprovalRequest | null }> => {
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let citations: Citation[] = [];
+    let interrupt: ApprovalRequest | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of decoder.decode(value).split('\n')) {
+        if (line.startsWith('data: ')) {
+          const payload = line.slice(6);
+          if (payload === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.interrupt) {
+              interrupt = parsed.interrupt;
+            }
+            if (parsed.content !== undefined) {
+              fullText = parsed.content;
+            }
+            if (parsed.citations) {
+              citations = parsed.citations;
+            }
+          } catch {
+            /* ignore parse errors */
+          }
+        }
+      }
+    }
+    return { fullText, citations, interrupt };
+  };
+
+  const resume = async (convId: string, approved: boolean) => {
+    setResuming(true);
+    try {
+      const resp = await fetch(`${API_BASE}/chat/completions/resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: convId, approved }),
+      });
+      const { fullText, citations } = await readStream(resp.body!.getReader());
+      dispatch(
+        appendMessage({
+          role: 'assistant',
+          content: fullText,
+          sources: citations.length > 0 ? citations : undefined,
+        }),
+      );
+    } finally {
+      setResuming(false);
+      setApproval(null);
+      dispatch(setStreaming(false));
+      dispatch(fetchConversations());
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || streaming) return;
     const msg = input;
@@ -69,45 +149,29 @@ export default function ChatPage() {
       navigate(`/chat/${convId}`, { replace: true });
     }
 
-    const resp = await fetch(`${API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: msg, conversation_id: convId }),
-    });
-    const reader = resp.body!.getReader();
-    const decoder = new TextDecoder();
-    let fullText = '';
-    let citations: Citation[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value).split('\n')) {
-        if (line.startsWith('data: ')) {
-          const payload = line.slice(6);
-          if (payload === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(payload);
-            if (parsed.content !== undefined) {
-              fullText = parsed.content;
-            }
-            if (parsed.citations) {
-              citations = parsed.citations;
-            }
-          } catch {
-            /* ignore parse errors */
-          }
-        }
+    try {
+      const resp = await fetch(`${API_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: msg, conversation_id: convId }),
+      });
+      const { fullText, citations, interrupt } = await readStream(resp.body!.getReader());
+      if (interrupt) {
+        setApproval(interrupt);
+        return;
       }
+      dispatch(
+        appendMessage({
+          role: 'assistant',
+          content: fullText,
+          sources: citations.length > 0 ? citations : undefined,
+        }),
+      );
+      dispatch(setStreaming(false));
+      dispatch(fetchConversations());
+    } catch {
+      dispatch(setStreaming(false));
     }
-    dispatch(
-      appendMessage({
-        role: 'assistant',
-        content: fullText,
-        sources: citations.length > 0 ? citations : undefined,
-      }),
-    );
-    dispatch(setStreaming(false));
-    dispatch(fetchConversations());
   };
 
   return (
@@ -204,10 +268,60 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onSearch={handleSend}
-            loading={streaming}
+            loading={streaming || resuming}
           />
         </div>
       </Content>
+
+      <Modal
+        title="升级审批"
+        open={approval !== null}
+        closable={!resuming}
+        maskClosable={false}
+        footer={
+          resuming ? null : (
+            <>
+              <Button onClick={() => currentId && resume(currentId, false)}>
+                拒绝
+              </Button>
+              <Button
+                type="primary"
+                danger
+                onClick={() => currentId && resume(currentId, true)}
+              >
+                批准升级
+              </Button>
+            </>
+          )
+        }
+      >
+        {resuming ? (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <Spin tip="正在创建工单..." />
+          </div>
+        ) : (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              message={approval?.question || '需要人工确认'}
+              style={{ marginBottom: 16 }}
+            />
+            {approval?.title && (
+              <p>
+                <Text strong>工单标题：</Text>
+                {approval.title}
+              </p>
+            )}
+            {approval?.description && (
+              <p>
+                <Text strong>工单内容：</Text>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{approval.description}</span>
+              </p>
+            )}
+          </>
+        )}
+      </Modal>
     </Layout>
   );
 }
