@@ -4,6 +4,7 @@ from app.models.error_pattern import ErrorPattern
 from app.models.ticket import Ticket
 from app.models.user import User
 from app.models.tenant import Tenant
+from app.models.diagnosis_flow import DiagnosisFlow
 
 __all__ = [
     "KnowledgeDocument",
@@ -14,4 +15,5 @@ __all__ = [
     "Ticket",
     "User",
     "Tenant",
+    "DiagnosisFlow",
 ]

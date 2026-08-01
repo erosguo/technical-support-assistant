@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import chat, knowledge, health, diagnosis, ticket, auth
+from app.api.v1 import chat, knowledge, health, diagnosis, ticket, auth, diagnosis_flow
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.add_middleware(
@@ -18,3 +18,4 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledg
 app.include_router(diagnosis.router, prefix="/api/v1", tags=["diagnosis"])
 app.include_router(ticket.router, prefix="/api/v1", tags=["ticket"])
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
+app.include_router(diagnosis_flow.router, prefix="/api/v1", tags=["diagnosis-flow"])
