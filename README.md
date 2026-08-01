@@ -24,21 +24,24 @@
 
 ### ✨ 核心特性
 
-| 特性                 | 说明                                                          |
-| -------------------- | ------------------------------------------------------------- |
-| 🔍 **智能知识检索**  | 基于 RAG 的知识库问答，支持向量检索、余弦相似度匹配和引用溯源 |
-| 📝 **文本分块**      | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
-| 🩺 **故障诊断**      | AI 驱动的故障诊断，结合模式匹配和 LLM 生成诊断建议            |
-| 📋 **工单管理**      | 支持工单创建、查询、更新，多优先级和状态管理                  |
-| 📊 **数据分析**      | 查询对话统计、消息统计、知识库统计，生成数据摘要              |
-| ⚠️ **智能升级**      | 自动识别高危问题，创建升级工单并通知相关工程师                |
-| 🤝 **人工审批**      | Human-in-the-Loop，高危升级需人工确认，支持批准/拒绝          |
-| 🤖 **多 Agent 协作** | Supervisor Agent 智能路由用户意图到对应子 Agent               |
-| 💬 **SSE 流式对话**  | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
-| 📚 **知识库管理**    | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
-| 🖥️ **React 前端**    | 完整的聊天/诊断/工单/知识库界面，支持升级审批弹窗             |
-| 🏥 **健康检查**      | API 健康监控，快速定位服务状态                                |
-| 🧪 **TDD 驱动**      | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
+| 特性                  | 说明                                                          |
+| --------------------- | ------------------------------------------------------------- |
+| 🔍 **智能知识检索**   | 基于 RAG 的知识库问答，支持向量检索、余弦相似度匹配和引用溯源 |
+| 📝 **文本分块**       | 智能分块算法，支持段落级分块和重叠窗口，优化上下文检索        |
+| 🩺 **故障诊断**       | AI 驱动的故障诊断，结合模式匹配和 LLM 生成诊断建议            |
+| 📋 **工单管理**       | 支持工单创建、查询、更新，多优先级和状态管理                  |
+| 📊 **数据分析**       | 查询对话统计、消息统计、知识库统计，生成数据摘要              |
+| ⚠️ **智能升级**       | 自动识别高危问题，创建升级工单并通知相关工程师                |
+| 🤝 **人工审批**       | Human-in-the-Loop，高危升级需人工确认，支持批准/拒绝          |
+| 🔐 **认证授权**       | JWT 认证 + OAuth2 密码流，bcrypt 密码哈希，RBAC 角色权限控制  |
+| 🏢 **多租户**         | Tenant 模型 + 数据隔离，支持多组织独立运营                    |
+| 🔄 **诊断流程编辑器** | 可视化诊断流程定义，支持 CRUD、版本管理和流程激活             |
+| 🤖 **多 Agent 协作**  | Supervisor Agent 智能路由用户意图到对应子 Agent               |
+| 💬 **SSE 流式对话**   | 服务端推送技术，实现实时流式响应，支持引用来源展示            |
+| 📚 **知识库管理**     | 支持文档上传、分块、向量化和搜索，完整的 CRUD 操作            |
+| 🖥️ **React 前端**     | 完整的聊天/诊断/工单/知识库/登录界面，支持路由守卫和升级审批  |
+| 🏥 **健康检查**       | API 健康监控，快速定位服务状态                                |
+| 🧪 **TDD 驱动**       | 完整的测试套件，覆盖 Agent、API、数据库、服务层               |
 
 ### 🏗️ 技术架构
 
@@ -284,6 +287,20 @@ curl http://localhost:8000/api/v1/health
 | GET          | `/api/v1/knowledge/documents/{id}`         | 文档详情                      |
 | DELETE       | `/api/v1/knowledge/documents/{id}`         | 删除文档                      |
 | POST         | `/api/v1/knowledge/search`                 | 搜索知识库                    |
+| **认证授权** |                                            |                               |
+| POST         | `/api/v1/auth/login`                       | 用户登录（返回 JWT）          |
+| GET          | `/api/v1/auth/me`                          | 获取当前用户信息              |
+| POST         | `/api/v1/auth/users`                       | 创建用户（仅 admin）          |
+| GET          | `/api/v1/auth/users`                       | 用户列表（admin/manager）     |
+| PATCH        | `/api/v1/auth/users/{id}`                  | 更新用户（仅 admin）          |
+| POST         | `/api/v1/auth/change-password`             | 修改密码                      |
+| **诊断流程** |                                            |                               |
+| POST         | `/api/v1/diagnosis/flows`                  | 创建诊断流程                  |
+| GET          | `/api/v1/diagnosis/flows`                  | 流程列表                      |
+| GET          | `/api/v1/diagnosis/flows/{id}`             | 流程详情                      |
+| PATCH        | `/api/v1/diagnosis/flows/{id}`             | 更新流程                      |
+| DELETE       | `/api/v1/diagnosis/flows/{id}`             | 删除流程                      |
+| POST         | `/api/v1/diagnosis/flows/{id}/activate`    | 激活流程                      |
 
 #### 请求示例
 
@@ -476,21 +493,24 @@ LLM_BASE_URL=https://api.openai.com/v1
 
 ### ✨ Key Features
 
-| Feature                                | Description                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations           |
-| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap             |
-| 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions         |
-| 📋 **Ticket Management**               | Create, query, update tickets with priority and status management           |
-| 📊 **Data Analytics**                  | Query conversation, message, and knowledge base statistics                  |
-| ⚠️ **Smart Escalation**                | Auto-identify critical issues, create escalation tickets and notify         |
-| 🤝 **Human-in-the-Loop**               | Manual approval required for high-risk escalation, approve/reject           |
-| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to specialized sub-agents                    |
-| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display                  |
-| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD                     |
-| 🖥️ **React Frontend**                  | Complete chat/diagnosis/ticket/knowledge base interface with approval modal |
-| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                         |
-| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services                     |
+| Feature                                | Description                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| 🔍 **Intelligent Knowledge Retrieval** | RAG-based Q&A with vector search, cosine similarity and citations          |
+| 📝 **Text Chunking**                   | Intelligent chunking with paragraph-level splitting and overlap            |
+| 🩺 **AI-Powered Diagnosis**            | AI-driven fault diagnosis with pattern matching and LLM suggestions        |
+| 📋 **Ticket Management**               | Create, query, update tickets with priority and status management          |
+| 📊 **Data Analytics**                  | Query conversation, message, and knowledge base statistics                 |
+| ⚠️ **Smart Escalation**                | Auto-identify critical issues, create escalation tickets and notify        |
+| 🤝 **Human-in-the-Loop**               | Manual approval required for high-risk escalation, approve/reject          |
+| 🔐 **Authentication & Authorization**  | JWT auth + OAuth2 password flow, bcrypt hashing, RBAC role-based access    |
+| 🏢 **Multi-Tenancy**                   | Tenant model + data isolation for multi-organization support               |
+| 🔄 **Diagnosis Flow Editor**           | Visual diagnosis flow definition with CRUD, versioning, and activation     |
+| 🤖 **Multi-Agent Collaboration**       | Supervisor Agent routes intent to specialized sub-agents                   |
+| 💬 **SSE Streaming Chat**              | Real-time streaming responses with citation source display                 |
+| 📚 **Knowledge Base Management**       | Document upload, chunking, vectorization with full CRUD                    |
+| 🖥️ **React Frontend**                  | Complete chat/diagnosis/ticket/knowledge/login interface with route guards |
+| 🏥 **Health Check**                    | API health monitoring for quick service diagnostics                        |
+| 🧪 **TDD-Driven**                      | Complete test suite covering Agents, APIs, DB, Services                    |
 
 ### 🏗️ Architecture
 
@@ -737,6 +757,20 @@ After starting the server, visit Swagger UI: `http://localhost:8000/docs`
 | GET                | `/api/v1/knowledge/documents/{id}`         | Get document details                                |
 | DELETE             | `/api/v1/knowledge/documents/{id}`         | Delete document                                     |
 | POST               | `/api/v1/knowledge/search`                 | Search knowledge base                               |
+| **Auth**           |                                            |                                                     |
+| POST               | `/api/v1/auth/login`                       | User login (returns JWT)                            |
+| GET                | `/api/v1/auth/me`                          | Get current user info                               |
+| POST               | `/api/v1/auth/users`                       | Create user (admin only)                            |
+| GET                | `/api/v1/auth/users`                       | List users (admin/manager)                          |
+| PATCH              | `/api/v1/auth/users/{id}`                  | Update user (admin only)                            |
+| POST               | `/api/v1/auth/change-password`             | Change password                                     |
+| **Diagnosis Flow** |                                            |                                                     |
+| POST               | `/api/v1/diagnosis/flows`                  | Create diagnosis flow                               |
+| GET                | `/api/v1/diagnosis/flows`                  | List flows                                          |
+| GET                | `/api/v1/diagnosis/flows/{id}`             | Get flow details                                    |
+| PATCH              | `/api/v1/diagnosis/flows/{id}`             | Update flow                                         |
+| DELETE             | `/api/v1/diagnosis/flows/{id}`             | Delete flow                                         |
+| POST               | `/api/v1/diagnosis/flows/{id}/activate`    | Activate flow                                       |
 
 #### Request Examples
 

@@ -3131,13 +3131,13 @@ npx vitest run
 
 ## 验证清单 (Phase 2 完成标准)
 
-- [ ] 用户可注册/登录，密码使用 bcrypt 哈希
-- [ ] JWT token 认证，所有 API 需 Bearer token
-- [ ] RBAC 角色权限：admin/manager/l2_engineer/l1_engineer
-- [ ] 用户管理 API（仅 admin 可操作）
-- [ ] 前端登录页面 + 路由守卫
-- [ ] 多租户模型 + 数据隔离
-- [ ] 诊断流程编辑器（CRUD + 激活）
-- [ ] `pytest tests/ -v` 全部通过
-- [ ] `npx vitest run` 前端测试全部通过
-- [ ] `ruff check backend/app/` 全部通过
+- [x] 用户可注册/登录，密码使用 bcrypt 哈希
+- [x] JWT token 认证，所有 API 需 Bearer token
+- [x] RBAC 角色权限：admin/manager/l2_engineer/l1_engineer
+- [x] 用户管理 API（仅 admin 可操作）
+- [x] 前端登录页面 + 路由守卫
+- [x] 多租户模型 + 数据隔离
+- [x] 诊断流程编辑器（CRUD + 激活）
+- [x] `pytest tests/ -v` 全部通过 (171 tests)
+- [x] `npx vitest run` 前端测试全部通过 (12 tests)
+- [x] `ruff check backend/app/` 全部通过
