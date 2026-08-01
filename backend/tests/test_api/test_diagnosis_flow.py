@@ -24,11 +24,11 @@ def _auth_header(user):
 
 
 class TestDiagnosisFlowAPI:
-    def test_create_flow(self, client, db_session):
+    def test_create_flow(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={
@@ -45,13 +45,13 @@ class TestDiagnosisFlowAPI:
 
         asyncio.run(run())
 
-    def test_list_flows(self, client, db_session):
+    def test_list_flows(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
             # Create two flows
             for i in range(2):
-                await client.post(
+                await unauth_client.post(
                     "/api/v1/diagnosis/flows",
                     headers=_auth_header(admin),
                     json={
@@ -59,7 +59,7 @@ class TestDiagnosisFlowAPI:
                         "steps": [{"id": "s1", "title": "Step"}],
                     },
                 )
-            resp = await client.get(
+            resp = await unauth_client.get(
                 "/api/v1/diagnosis/flows", headers=_auth_header(admin)
             )
             assert resp.status_code == 200
@@ -67,17 +67,17 @@ class TestDiagnosisFlowAPI:
 
         asyncio.run(run())
 
-    def test_get_flow(self, client, db_session):
+    def test_get_flow(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
-            create = await client.post(
+            create = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={"name": "Get Test", "steps": [{"id": "s1", "title": "Step"}]},
             )
             flow_id = create.json()["id"]
-            resp = await client.get(
+            resp = await unauth_client.get(
                 f"/api/v1/diagnosis/flows/{flow_id}", headers=_auth_header(admin)
             )
             assert resp.status_code == 200
@@ -85,17 +85,17 @@ class TestDiagnosisFlowAPI:
 
         asyncio.run(run())
 
-    def test_update_flow_increments_version(self, client, db_session):
+    def test_update_flow_increments_version(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
-            create = await client.post(
+            create = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={"name": "Original", "steps": [{"id": "s1", "title": "Step"}]},
             )
             flow_id = create.json()["id"]
-            resp = await client.patch(
+            resp = await unauth_client.patch(
                 f"/api/v1/diagnosis/flows/{flow_id}",
                 headers=_auth_header(admin),
                 json={
@@ -111,52 +111,52 @@ class TestDiagnosisFlowAPI:
 
         asyncio.run(run())
 
-    def test_delete_flow(self, client, db_session):
+    def test_delete_flow(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
-            create = await client.post(
+            create = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={"name": "Delete Me", "steps": [{"id": "s1", "title": "Step"}]},
             )
             flow_id = create.json()["id"]
-            resp = await client.delete(
+            resp = await unauth_client.delete(
                 f"/api/v1/diagnosis/flows/{flow_id}", headers=_auth_header(admin)
             )
             assert resp.status_code == 204
             # Verify deleted
-            get_resp = await client.get(
+            get_resp = await unauth_client.get(
                 f"/api/v1/diagnosis/flows/{flow_id}", headers=_auth_header(admin)
             )
             assert get_resp.status_code == 404
 
         asyncio.run(run())
 
-    def test_activate_flow(self, client, db_session):
+    def test_activate_flow(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
             # Create two flows
-            f1 = await client.post(
+            f1 = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={"name": "Flow 1", "steps": [{"id": "s1", "title": "Step"}]},
             )
-            f2 = await client.post(
+            f2 = await unauth_client.post(
                 "/api/v1/diagnosis/flows",
                 headers=_auth_header(admin),
                 json={"name": "Flow 2", "steps": [{"id": "s1", "title": "Step"}]},
             )
             # Activate flow 2
-            resp = await client.post(
+            resp = await unauth_client.post(
                 f"/api/v1/diagnosis/flows/{f2.json()['id']}/activate",
                 headers=_auth_header(admin),
             )
             assert resp.status_code == 200
             assert resp.json()["is_active"] is True
             # Flow 1 should be deactivated
-            f1_resp = await client.get(
+            f1_resp = await unauth_client.get(
                 f"/api/v1/diagnosis/flows/{f1.json()['id']}",
                 headers=_auth_header(admin),
             )
@@ -164,11 +164,11 @@ class TestDiagnosisFlowAPI:
 
         asyncio.run(run())
 
-    def test_get_nonexistent_flow_404(self, client, db_session):
+    def test_get_nonexistent_flow_404(self, unauth_client, db_session):
         admin = _make_user(db_session)
 
         async def run():
-            resp = await client.get(
+            resp = await unauth_client.get(
                 "/api/v1/diagnosis/flows/nonexistent",
                 headers=_auth_header(admin),
             )

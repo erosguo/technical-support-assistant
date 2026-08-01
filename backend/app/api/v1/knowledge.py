@@ -3,7 +3,9 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.db.session import get_session
 from app.models.knowledge import KnowledgeDocument
+from app.models.user import User
 from app.core.config import settings
+from app.services.auth import get_current_user, require_role
 from app.services.knowledge import create_document, search_knowledge
 from app.services.llm import LLMRouter
 
@@ -15,6 +17,7 @@ def upload_document(
     title: str = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
+    current_user: User = Depends(require_role("admin", "l2_engineer")),
 ):
     content = file.file.read().decode("utf-8")
     llm = LLMRouter() if settings.llm_api_key else None
@@ -23,7 +26,10 @@ def upload_document(
 
 
 @router.get("/documents")
-def list_documents(session: Session = Depends(get_session)):
+def list_documents(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     result = session.execute(
         select(KnowledgeDocument).order_by(desc(KnowledgeDocument.updated_at))
     )
@@ -39,7 +45,11 @@ def list_documents(session: Session = Depends(get_session)):
 
 
 @router.get("/documents/{doc_id}")
-def get_document(doc_id: str, session: Session = Depends(get_session)):
+def get_document(
+    doc_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     doc = session.get(KnowledgeDocument, doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
@@ -53,7 +63,11 @@ def get_document(doc_id: str, session: Session = Depends(get_session)):
 
 
 @router.delete("/documents/{doc_id}")
-def delete_document(doc_id: str, session: Session = Depends(get_session)):
+def delete_document(
+    doc_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_role("admin", "l2_engineer")),
+):
     doc = session.get(KnowledgeDocument, doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
@@ -64,7 +78,10 @@ def delete_document(doc_id: str, session: Session = Depends(get_session)):
 
 @router.post("/search")
 def search_endpoint(
-    query: str, top_k: int = 5, session: Session = Depends(get_session)
+    query: str,
+    top_k: int = 5,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not settings.llm_api_key:
         return {"results": []}

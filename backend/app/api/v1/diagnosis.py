@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_session
+from app.models.user import User
+from app.services.auth import get_current_user
 from app.services.llm import LLMRouter
 from app.agents.diagnosis import diagnosis_node
 from app.models.conversation import Conversation, Message
@@ -16,7 +18,11 @@ class DiagnosisRequest(BaseModel):
 
 
 @router.post("/diagnosis")
-def diagnose(req: DiagnosisRequest, session: Session = Depends(get_session)):
+def diagnose(
+    req: DiagnosisRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     llm = LLMRouter()
 
     state = {

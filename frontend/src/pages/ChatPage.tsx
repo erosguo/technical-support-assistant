@@ -17,6 +17,7 @@ import { PlusOutlined, MessageOutlined, DeleteOutlined } from '@ant-design/icons
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { AppDispatch, RootState, Citation } from '../store';
+import { TOKEN_KEY } from '../services/api';
 import {
   fetchConversations,
   createConversation,
@@ -117,7 +118,10 @@ export default function ChatPage() {
     try {
       const resp = await fetch(`${API_BASE}/chat/completions/resume`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
+        },
         body: JSON.stringify({ conversation_id: convId, approved }),
       });
       const { fullText, citations } = await readStream(resp.body!.getReader());
@@ -152,7 +156,10 @@ export default function ChatPage() {
     try {
       const resp = await fetch(`${API_BASE}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
+        },
         body: JSON.stringify({ content: msg, conversation_id: convId }),
       });
       const { fullText, citations, interrupt } = await readStream(resp.body!.getReader());

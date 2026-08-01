@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE = 'http://localhost:8000/api/v1';
+import api from './api';
 
 export interface Ticket {
   id: string;
@@ -35,25 +33,25 @@ export interface UpdateTicketRequest {
 }
 
 export async function createTicket(data: CreateTicketRequest): Promise<Ticket> {
-  const res = await axios.post(`${API_BASE}/tickets`, data);
+  const res = await api.post('/tickets', data);
   return res.data;
 }
 
 export async function listTickets(): Promise<TicketListItem[]> {
-  const res = await axios.get(`${API_BASE}/tickets`);
+  const res = await api.get('/tickets');
   return res.data;
 }
 
 export async function getTicket(id: string): Promise<Ticket> {
-  const res = await axios.get(`${API_BASE}/tickets/${id}`);
+  const res = await api.get(`/tickets/${id}`);
   return res.data;
 }
 
 export async function updateTicket(id: string, data: UpdateTicketRequest): Promise<Ticket> {
-  const res = await axios.patch(`${API_BASE}/tickets/${id}`, data);
+  const res = await api.patch(`/tickets/${id}`, data);
   return res.data;
 }
 
 export async function deleteTicket(id: string): Promise<void> {
-  await axios.delete(`${API_BASE}/tickets/${id}`);
+  await api.delete(`/tickets/${id}`);
 }

@@ -1,5 +1,6 @@
 """Auth API tests — Phase 2 Task 2.2."""
 
+import asyncio
 import pytest
 from app.models.user import User
 from app.services.auth import hash_password
@@ -19,11 +20,9 @@ def test_user(db_session):
 
 
 class TestAuthAPI:
-    def test_login_success(self, client, db_session, test_user):
-        import asyncio
-
+    def test_login_success(self, unauth_client, db_session, test_user):
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/login",
                 json={"email": "test@example.com", "password": "testpass123"},
             )
@@ -34,11 +33,9 @@ class TestAuthAPI:
 
         asyncio.run(run())
 
-    def test_login_wrong_password(self, client, db_session, test_user):
-        import asyncio
-
+    def test_login_wrong_password(self, unauth_client, db_session, test_user):
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/login",
                 json={"email": "test@example.com", "password": "wrongpass"},
             )
@@ -46,11 +43,9 @@ class TestAuthAPI:
 
         asyncio.run(run())
 
-    def test_login_nonexistent_user(self, client, db_session):
-        import asyncio
-
+    def test_login_nonexistent_user(self, unauth_client, db_session):
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/login",
                 json={"email": "nobody@example.com", "password": "pass"},
             )
@@ -58,15 +53,13 @@ class TestAuthAPI:
 
         asyncio.run(run())
 
-    def test_me_with_valid_token(self, client, db_session, test_user):
-        import asyncio
-
+    def test_me_with_valid_token(self, unauth_client, db_session, test_user):
         from app.services.auth import create_access_token
 
         token = create_access_token({"sub": str(test_user.id)})
 
         async def run():
-            resp = await client.get(
+            resp = await unauth_client.get(
                 "/api/v1/auth/me",
                 headers={"Authorization": f"Bearer {token}"},
             )
@@ -78,20 +71,16 @@ class TestAuthAPI:
 
         asyncio.run(run())
 
-    def test_me_without_token(self, client, db_session):
-        import asyncio
-
+    def test_me_without_token(self, unauth_client, db_session):
         async def run():
-            resp = await client.get("/api/v1/auth/me")
+            resp = await unauth_client.get("/api/v1/auth/me")
             assert resp.status_code == 401
 
         asyncio.run(run())
 
-    def test_me_with_invalid_token(self, client, db_session):
-        import asyncio
-
+    def test_me_with_invalid_token(self, unauth_client, db_session):
         async def run():
-            resp = await client.get(
+            resp = await unauth_client.get(
                 "/api/v1/auth/me",
                 headers={"Authorization": "Bearer invalid.token.here"},
             )

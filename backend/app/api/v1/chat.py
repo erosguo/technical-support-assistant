@@ -8,8 +8,10 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from app.db.session import get_session
 from app.models.conversation import Conversation, Message
+from app.models.user import User
 from app.agents.supervisor import build_supervisor_graph
 from app.core.config import settings
+from app.services.auth import get_current_user
 from app.services.knowledge import search_knowledge
 from app.services.llm import LLMRouter
 
@@ -29,7 +31,10 @@ def _conv_to_dict(conv: Conversation) -> dict:
 
 
 @router.get("/conversations")
-def list_conversations(session: Session = Depends(get_session)):
+def list_conversations(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     result = session.execute(
         select(Conversation).order_by(desc(Conversation.updated_at))
     )
@@ -37,7 +42,11 @@ def list_conversations(session: Session = Depends(get_session)):
 
 
 @router.post("/conversations")
-def create_conversation(data: dict, session: Session = Depends(get_session)):
+def create_conversation(
+    data: dict,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     conv = Conversation(title=data.get("title", "新对话"))
     session.add(conv)
     session.commit()
@@ -46,7 +55,11 @@ def create_conversation(data: dict, session: Session = Depends(get_session)):
 
 
 @router.get("/conversations/{conv_id}")
-def get_conversation(conv_id: str, session: Session = Depends(get_session)):
+def get_conversation(
+    conv_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     conv = session.get(Conversation, conv_id)
     if not conv:
         raise HTTPException(404, "会话不存在")
@@ -54,7 +67,11 @@ def get_conversation(conv_id: str, session: Session = Depends(get_session)):
 
 
 @router.delete("/conversations/{conv_id}")
-def delete_conversation(conv_id: str, session: Session = Depends(get_session)):
+def delete_conversation(
+    conv_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     conv = session.get(Conversation, conv_id)
     if not conv:
         raise HTTPException(404, "会话不存在")
@@ -75,7 +92,11 @@ def _msg_to_dict(msg: Message) -> dict:
 
 
 @router.get("/conversations/{conv_id}/messages")
-def list_messages(conv_id: str, session: Session = Depends(get_session)):
+def list_messages(
+    conv_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     result = session.execute(
         select(Message)
         .where(Message.conversation_id == conv_id)
@@ -85,7 +106,11 @@ def list_messages(conv_id: str, session: Session = Depends(get_session)):
 
 
 @router.post("/completions")
-def chat_completion(req: dict, session: Session = Depends(get_session)):
+def chat_completion(
+    req: dict,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     content = req["content"]
     conv_id = req.get("conversation_id")
 
@@ -161,7 +186,11 @@ def chat_completion(req: dict, session: Session = Depends(get_session)):
 
 
 @router.post("/completions/resume")
-def chat_resume(req: dict, session: Session = Depends(get_session)):
+def chat_resume(
+    req: dict,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     conv_id = req.get("conversation_id")
     approved = bool(req.get("approved", False))
     if not conv_id:

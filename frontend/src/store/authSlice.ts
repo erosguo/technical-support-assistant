@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API_BASE = 'http://localhost:8000/api/v1';
+import api, { TOKEN_KEY } from '../services/api';
 
 export interface AuthUser {
   id: string;
@@ -18,8 +16,6 @@ export interface AuthState {
   error: string | null;
 }
 
-const TOKEN_KEY = 'tech_support_token';
-
 const initialState: AuthState = {
   token: localStorage.getItem(TOKEN_KEY),
   user: null,
@@ -35,7 +31,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+      const res = await api.post('/auth/login', { email, password });
       const token = res.data.access_token;
       localStorage.setItem(TOKEN_KEY, token);
       return token;
@@ -47,13 +43,9 @@ export const login = createAsyncThunk(
 
 export const fetchCurrentUser = createAsyncThunk(
   'auth/fetchCurrentUser',
-  async (_, { getState, rejectWithValue }) => {
-    const { auth } = getState() as { auth: AuthState };
-    if (!auth.token) return rejectWithValue('No token');
+  async (_, { rejectWithValue }) => {
     try {
-      const res = await axios.get(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-      });
+      const res = await api.get('/auth/me');
       return res.data as AuthUser;
     } catch (err: any) {
       localStorage.removeItem(TOKEN_KEY);

@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API_BASE = 'http://localhost:8000/api/v1';
+import api from '../services/api';
 
 export interface Citation {
   document_id: string;
@@ -45,14 +43,14 @@ const initialState: ConversationState = {
 };
 
 export const fetchConversations = createAsyncThunk('conversation/fetchList', async () => {
-  const res = await axios.get(`${API_BASE}/chat/conversations`);
+  const res = await api.get('/chat/conversations');
   return res.data;
 });
 
 export const createConversation = createAsyncThunk(
   'conversation/create',
   async (title?: string) => {
-    const res = await axios.post(`${API_BASE}/chat/conversations`, {
+    const res = await api.post('/chat/conversations', {
       title: title || '新对话',
     });
     return res.data;
@@ -62,7 +60,7 @@ export const createConversation = createAsyncThunk(
 export const fetchMessages = createAsyncThunk(
   'conversation/fetchMessages',
   async (convId: string) => {
-    const res = await axios.get(`${API_BASE}/chat/conversations/${convId}/messages`);
+    const res = await api.get(`/chat/conversations/${convId}/messages`);
     return res.data;
   },
 );
@@ -70,7 +68,7 @@ export const fetchMessages = createAsyncThunk(
 export const deleteConversation = createAsyncThunk(
   'conversation/delete',
   async (convId: string) => {
-    await axios.delete(`${API_BASE}/chat/conversations/${convId}`);
+    await api.delete(`/chat/conversations/${convId}`);
     return convId;
   },
 );

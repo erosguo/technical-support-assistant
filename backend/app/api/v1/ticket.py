@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_session
+from app.models.user import User
+from app.services.auth import get_current_user, require_role
 from app.services.ticket import (
     create_ticket as svc_create_ticket,
     get_ticket as svc_get_ticket,
@@ -26,7 +28,11 @@ class UpdateTicketRequest(BaseModel):
 
 
 @router.post("/tickets")
-def create_ticket(req: CreateTicketRequest, session: Session = Depends(get_session)):
+def create_ticket(
+    req: CreateTicketRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     ticket = svc_create_ticket(
         session=session,
         title=req.title,
@@ -45,7 +51,10 @@ def create_ticket(req: CreateTicketRequest, session: Session = Depends(get_sessi
 
 
 @router.get("/tickets")
-def list_tickets(session: Session = Depends(get_session)):
+def list_tickets(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     tickets = svc_list_tickets(session)
     return [
         {
@@ -61,7 +70,11 @@ def list_tickets(session: Session = Depends(get_session)):
 
 
 @router.get("/tickets/{ticket_id}")
-def get_ticket(ticket_id: str, session: Session = Depends(get_session)):
+def get_ticket(
+    ticket_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     ticket = svc_get_ticket(session, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -82,6 +95,7 @@ def update_ticket(
     ticket_id: str,
     req: UpdateTicketRequest,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
     ticket = svc_update_ticket(session, ticket_id, **updates)
@@ -97,7 +111,11 @@ def update_ticket(
 
 
 @router.delete("/tickets/{ticket_id}")
-def delete_ticket(ticket_id: str, session: Session = Depends(get_session)):
+def delete_ticket(
+    ticket_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_role("admin", "manager")),
+):
     ticket = svc_get_ticket(session, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")

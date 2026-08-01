@@ -24,40 +24,46 @@ def _auth_header(user):
 
 
 class TestRBAC:
-    def test_admin_can_list_users(self, client, db_session):
+    def test_admin_can_list_users(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
         _make_user(db_session, "user1@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.get("/api/v1/auth/users", headers=_auth_header(admin))
+            resp = await unauth_client.get(
+                "/api/v1/auth/users", headers=_auth_header(admin)
+            )
             assert resp.status_code == 200
             assert len(resp.json()) >= 2
 
         asyncio.run(run())
 
-    def test_manager_can_list_users(self, client, db_session):
+    def test_manager_can_list_users(self, unauth_client, db_session):
         manager = _make_user(db_session, "manager@example.com", "manager")
 
         async def run():
-            resp = await client.get("/api/v1/auth/users", headers=_auth_header(manager))
+            resp = await unauth_client.get(
+                "/api/v1/auth/users", headers=_auth_header(manager)
+            )
             assert resp.status_code == 200
 
         asyncio.run(run())
 
-    def test_l1_engineer_cannot_list_users(self, client, db_session):
+    def test_l1_engineer_cannot_list_users(self, unauth_client, db_session):
         eng = _make_user(db_session, "eng@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.get("/api/v1/auth/users", headers=_auth_header(eng))
+            resp = await unauth_client.get(
+                "/api/v1/auth/users", headers=_auth_header(eng)
+            )
             assert resp.status_code == 403
 
         asyncio.run(run())
 
-    def test_admin_can_create_user(self, client, db_session):
+    def test_admin_can_create_user(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/users",
                 headers=_auth_header(admin),
                 json={
@@ -72,11 +78,11 @@ class TestRBAC:
 
         asyncio.run(run())
 
-    def test_l1_engineer_cannot_create_user(self, client, db_session):
+    def test_l1_engineer_cannot_create_user(self, unauth_client, db_session):
         eng = _make_user(db_session, "eng@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/users",
                 headers=_auth_header(eng),
                 json={
@@ -89,11 +95,11 @@ class TestRBAC:
 
         asyncio.run(run())
 
-    def test_duplicate_email_rejected(self, client, db_session):
+    def test_duplicate_email_rejected(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/users",
                 headers=_auth_header(admin),
                 json={
@@ -108,12 +114,12 @@ class TestRBAC:
 
 
 class TestUserManagement:
-    def test_update_user_role(self, client, db_session):
+    def test_update_user_role(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
         target = _make_user(db_session, "target@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.patch(
+            resp = await unauth_client.patch(
                 f"/api/v1/auth/users/{target.id}",
                 headers=_auth_header(admin),
                 json={"role": "l2_engineer"},
@@ -123,12 +129,12 @@ class TestUserManagement:
 
         asyncio.run(run())
 
-    def test_deactivate_user(self, client, db_session):
+    def test_deactivate_user(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
         target = _make_user(db_session, "target@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.patch(
+            resp = await unauth_client.patch(
                 f"/api/v1/auth/users/{target.id}",
                 headers=_auth_header(admin),
                 json={"is_active": False},
@@ -138,11 +144,11 @@ class TestUserManagement:
 
         asyncio.run(run())
 
-    def test_change_password_correct(self, client, db_session):
+    def test_change_password_correct(self, unauth_client, db_session):
         user = _make_user(db_session, "user@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/change-password",
                 headers=_auth_header(user),
                 json={"old_password": "pass123", "new_password": "newpass456"},
@@ -151,11 +157,11 @@ class TestUserManagement:
 
         asyncio.run(run())
 
-    def test_change_password_wrong_old(self, client, db_session):
+    def test_change_password_wrong_old(self, unauth_client, db_session):
         user = _make_user(db_session, "user@example.com", "l1_engineer")
 
         async def run():
-            resp = await client.post(
+            resp = await unauth_client.post(
                 "/api/v1/auth/change-password",
                 headers=_auth_header(user),
                 json={"old_password": "wrongpass", "new_password": "newpass456"},
@@ -164,11 +170,11 @@ class TestUserManagement:
 
         asyncio.run(run())
 
-    def test_update_nonexistent_user_404(self, client, db_session):
+    def test_update_nonexistent_user_404(self, unauth_client, db_session):
         admin = _make_user(db_session, "admin@example.com", "admin")
 
         async def run():
-            resp = await client.patch(
+            resp = await unauth_client.patch(
                 "/api/v1/auth/users/nonexistent-id",
                 headers=_auth_header(admin),
                 json={"role": "manager"},

@@ -1,6 +1,6 @@
-import axios from 'axios';
+import api from './api';
 
-const API_BASE = 'http://localhost:8000/api/v1/knowledge';
+const API_BASE = '/knowledge';
 
 export interface DocumentSummary {
   id: string;
@@ -14,7 +14,7 @@ export interface DocumentDetail extends DocumentSummary {
 }
 
 export async function listDocuments(): Promise<DocumentSummary[]> {
-  const res = await axios.get(`${API_BASE}/documents`);
+  const res = await api.get(`${API_BASE}/documents`);
   return res.data;
 }
 
@@ -25,15 +25,15 @@ export async function uploadDocument(
   const form = new FormData();
   form.append('title', title);
   form.append('file', file);
-  const res = await axios.post(`${API_BASE}/documents`, form);
+  const res = await api.post(`${API_BASE}/documents`, form);
   return res.data;
 }
 
 export async function getDocument(id: string): Promise<DocumentDetail> {
-  const res = await axios.get(`${API_BASE}/documents/${id}`);
+  const res = await api.get(`${API_BASE}/documents/${id}`);
   return res.data;
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await axios.delete(`${API_BASE}/documents/${id}`);
+  await api.delete(`${API_BASE}/documents/${id}`);
 }
