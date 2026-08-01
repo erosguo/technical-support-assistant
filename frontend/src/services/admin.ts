@@ -22,12 +22,12 @@ export async function getSystemStats(): Promise<SystemStats> {
   return res.data;
 }
 
-export async function evaluateResponse(data: { response: string; context?: string }): Promise<QualityScore> {
-  const res = await api.post('/admin/evaluate', data);
+export async function evaluateResponse(data: { query: string; response: string }): Promise<QualityScore> {
+  const res = await api.post('/admin/quality/evaluate', data);
   return res.data;
 }
 
-export async function discoverKnowledge(): Promise<{ patterns: Array<{ id: string; pattern: string; solution: string; severity: string; category: string; created_at: string }> }> {
-  const res = await api.post('/admin/discover', {});
+export async function discoverKnowledge(minTickets: number = 2): Promise<any[]> {
+  const res = await api.post('/admin/knowledge/discover', null, { params: { min_tickets: minTickets } });
   return res.data;
 }

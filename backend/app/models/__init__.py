@@ -5,6 +5,7 @@ from app.models.ticket import Ticket
 from app.models.user import User
 from app.models.tenant import Tenant
 from app.models.diagnosis_flow import DiagnosisFlow
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "KnowledgeDocument",
@@ -16,4 +17,5 @@ __all__ = [
     "User",
     "Tenant",
     "DiagnosisFlow",
+    "AuditLog",
 ]

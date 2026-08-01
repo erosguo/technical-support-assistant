@@ -10,6 +10,7 @@ class Conversation(Base, TimestampMixin):
     id = Column(GUID, primary_key=True, default=uuid.uuid4)
     title = Column(String(255), default="新对话")
     status = Column(String(50), default="active")
+    tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True, index=True)
     metadata_ = Column("metadata", JSON, default=dict)
 
 

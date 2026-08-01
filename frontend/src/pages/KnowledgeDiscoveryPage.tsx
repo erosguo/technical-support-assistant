@@ -4,12 +4,11 @@ import { ExperimentOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { discoverKnowledge } from '../services/admin';
 
 interface DiscoveredPattern {
-  id: string;
   pattern: string;
   solution: string;
   severity: string;
   category: string;
-  created_at: string;
+  created: boolean;
 }
 
 const severityColor: Record<string, string> = {
@@ -27,8 +26,8 @@ export default function KnowledgeDiscoveryPage() {
     setLoading(true);
     try {
       const result = await discoverKnowledge();
-      setPatterns(result.patterns || []);
-      message.success(`发现 ${result.patterns?.length || 0} 条新模式`);
+      setPatterns(result || []);
+      message.success(`发现 ${result?.length || 0} 条新模式`);
     } catch {
       message.error('知识发现失败');
     } finally {
@@ -48,11 +47,11 @@ export default function KnowledgeDiscoveryPage() {
     },
     { title: '分类', dataIndex: 'category', key: 'category', width: 120 },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 180,
-      render: (t: string) => new Date(t).toLocaleString('zh-CN'),
+      title: '新增',
+      dataIndex: 'created',
+      key: 'created',
+      width: 80,
+      render: (created: boolean) => created ? <Tag color="green">是</Tag> : <Tag>已存在</Tag>,
     },
   ];
 
@@ -76,7 +75,7 @@ export default function KnowledgeDiscoveryPage() {
         <Table
           dataSource={patterns}
           columns={columns}
-          rowKey="id"
+          rowKey={(r) => r.pattern}
           loading={loading}
           pagination={{ pageSize: 10 }}
         />

@@ -8,15 +8,15 @@ const { TextArea } = Input;
 
 export default function IntegrationPage() {
   const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ external_id: string; provider: string; url: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ external_id: string; provider: string; status: string } | null>(null);
   const [syncForm] = Form.useForm();
 
   const [notifyLoading, setNotifyLoading] = useState(false);
-  const [notifyResult, setNotifyResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [notifyResult, setNotifyResult] = useState<{ success: boolean; provider: string; sent_at: string } | null>(null);
   const [notifyForm] = Form.useForm();
 
   const [escalationLoading, setEscalationLoading] = useState(false);
-  const [escalationResult, setEscalationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [escalationResult, setEscalationResult] = useState<{ success: boolean; provider: string; sent_at: string } | null>(null);
   const [escalationForm] = Form.useForm();
 
   const handleSync = async () => {
@@ -74,9 +74,9 @@ export default function IntegrationPage() {
           <Form.Item label="外部服务商" name="provider" rules={[{ required: true, message: '请选择服务商' }]}>
             <Select
               options={[
-                { label: 'Jira', value: 'jira' },
-                { label: 'Zendesk', value: 'zendesk' },
-                { label: 'ServiceNow', value: 'servicenow' },
+                { label: 'Jira', value: 'JIRA' },
+                { label: 'Zendesk', value: 'ZENDESK' },
+                { label: 'ServiceNow', value: 'SERVICENOW' },
               ]}
             />
           </Form.Item>
@@ -94,10 +94,9 @@ export default function IntegrationPage() {
             <Divider />
             <div style={{ marginBottom: 8, fontWeight: 600 }}>同步结果：</div>
             <Space direction="vertical">
-              <Tag color="green">成功</Tag>
+              <Tag color="green">{syncResult.status}</Tag>
               <div>外部 ID: {syncResult.external_id}</div>
               <div>服务商: {syncResult.provider}</div>
-              <a href={syncResult.url} target="_blank" rel="noreferrer">{syncResult.url}</a>
             </Space>
           </div>
         )}
@@ -112,9 +111,9 @@ export default function IntegrationPage() {
           <Form.Item label="IM 服务商" name="provider" rules={[{ required: true, message: '请选择服务商' }]}>
             <Select
               options={[
-                { label: '飞书', value: 'feishu' },
-                { label: '钉钉', value: 'dingtalk' },
-                { label: 'Slack', value: 'slack' },
+                { label: '飞书', value: 'FEISHU' },
+                { label: '钉钉', value: 'DINGTALK' },
+                { label: 'Slack', value: 'SLACK' },
               ]}
             />
           </Form.Item>
@@ -139,7 +138,8 @@ export default function IntegrationPage() {
             <Tag color={notifyResult.success ? 'green' : 'red'}>
               {notifyResult.success ? '发送成功' : '发送失败'}
             </Tag>
-            <div>{notifyResult.message}</div>
+            <div>服务商: {notifyResult.provider}</div>
+            <div>发送时间: {new Date(notifyResult.sent_at).toLocaleString()}</div>
           </>
         )}
       </Card>
@@ -149,9 +149,9 @@ export default function IntegrationPage() {
           <Form.Item label="IM 服务商" name="provider" rules={[{ required: true, message: '请选择服务商' }]}>
             <Select
               options={[
-                { label: '飞书', value: 'feishu' },
-                { label: '钉钉', value: 'dingtalk' },
-                { label: 'Slack', value: 'slack' },
+                { label: '飞书', value: 'FEISHU' },
+                { label: '钉钉', value: 'DINGTALK' },
+                { label: 'Slack', value: 'SLACK' },
               ]}
             />
           </Form.Item>
@@ -176,7 +176,8 @@ export default function IntegrationPage() {
             <Tag color={escalationResult.success ? 'green' : 'red'}>
               {escalationResult.success ? '升级通知已发送' : '升级通知发送失败'}
             </Tag>
-            <div>{escalationResult.message}</div>
+            <div>服务商: {escalationResult.provider}</div>
+            <div>发送时间: {new Date(escalationResult.sent_at).toLocaleString()}</div>
           </>
         )}
       </Card>

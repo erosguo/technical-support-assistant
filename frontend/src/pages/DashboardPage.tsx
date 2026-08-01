@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Spin, message } from 'antd';
 import { MessageOutlined, FileTextOutlined, FileOutlined, ReadOutlined } from '@ant-design/icons';
 import { getSystemStats, SystemStats } from '../services/admin';
+import { useResponsive } from '../hooks/useResponsive';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMobile = useResponsive(768);
 
   useEffect(() => {
     const load = async () => {
@@ -23,10 +25,10 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Spin spinning={loading}>
-        <Row gutter={16}>
-          <Col span={6}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
                 title="总会话数"
@@ -35,7 +37,7 @@ export default function DashboardPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
                 title="总消息数"
@@ -44,7 +46,7 @@ export default function DashboardPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
                 title="总文档数"
@@ -53,7 +55,7 @@ export default function DashboardPage() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
                 title="总工单数"
@@ -65,8 +67,8 @@ export default function DashboardPage() {
         </Row>
 
         {stats && (
-          <Row gutter={16} style={{ marginTop: 16 }}>
-            <Col span={12}>
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col xs={24} md={12}>
               <Card title="工单状态分布">
                 {Object.entries(stats.tickets_by_status).map(([status, count]) => (
                   <Statistic
@@ -78,7 +80,7 @@ export default function DashboardPage() {
                 ))}
               </Card>
             </Col>
-            <Col span={12}>
+            <Col xs={24} md={12}>
               <Card title="用户角色分布">
                 {Object.entries(stats.users_by_role).map(([role, count]) => (
                   <Statistic

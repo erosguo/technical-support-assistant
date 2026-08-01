@@ -5,8 +5,8 @@ export async function sendNotification(
   webhookUrl: string,
   title: string,
   content: string,
-): Promise<{ success: boolean; message: string }> {
-  const res = await api.post('/notifications/send', { provider, webhook_url: webhookUrl, title, content });
+): Promise<{ success: boolean; provider: string; sent_at: string }> {
+  const res = await api.post('/notification/send', { provider, webhook_url: webhookUrl, title, content });
   return res.data;
 }
 
@@ -15,8 +15,8 @@ export async function sendEscalation(
   webhookUrl: string,
   ticketTitle: string,
   ticketDescription: string,
-): Promise<{ success: boolean; message: string }> {
-  const res = await api.post('/notifications/escalation', {
+): Promise<{ success: boolean; provider: string; sent_at: string }> {
+  const res = await api.post('/notification/escalation', {
     provider,
     webhook_url: webhookUrl,
     ticket_title: ticketTitle,

@@ -12,12 +12,14 @@ import {
   Modal,
   Spin,
   Alert,
+  Drawer,
 } from 'antd';
-import { PlusOutlined, MessageOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, MessageOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { AppDispatch, RootState, Citation } from '../store';
 import { TOKEN_KEY } from '../services/api';
+import { useResponsive } from '../hooks/useResponsive';
 import {
   fetchConversations,
   createConversation,
@@ -49,6 +51,8 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [approval, setApproval] = useState<ApprovalRequest | null>(null);
   const [resuming, setResuming] = useState(false);
+  const [siderOpen, setSiderOpen] = useState(false);
+  const isMobile = useResponsive(768);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -181,51 +185,70 @@ export default function ChatPage() {
     }
   };
 
+  const conversationList = (
+    <>
+      <div style={{ padding: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} block onClick={handleNew}>
+          新建对话
+        </Button>
+      </div>
+      <Menu
+        mode="inline"
+        selectedKeys={currentId ? [currentId] : []}
+        onSelect={({ key }) => {
+          navigate(`/chat/${key}`);
+          setSiderOpen(false);
+        }}
+        items={list.map((c) => ({
+          key: c.id,
+          icon: <MessageOutlined />,
+          label: (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                {c.title}
+              </span>
+              <Popconfirm
+                title="删除此对话？"
+                onConfirm={(e) => handleDelete(e as unknown as React.MouseEvent, c.id)}
+              >
+                <DeleteOutlined
+                  style={{ color: '#999', fontSize: 12 }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </Popconfirm>
+            </div>
+          ),
+        }))}
+      />
+    </>
+  );
+
   return (
     <Layout style={{ height: '100%' }}>
-      <Sider
-        width={280}
-        style={{ background: '#fff', borderRight: '1px solid #f0f0f0' }}
-      >
-        <div style={{ padding: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} block onClick={handleNew}>
-            新建对话
-          </Button>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={currentId ? [currentId] : []}
-          onSelect={({ key }) => navigate(`/chat/${key}`)}
-          items={list.map((c) => ({
-            key: c.id,
-            icon: <MessageOutlined />,
-            label: (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                  {c.title}
-                </span>
-                <Popconfirm
-                  title="删除此对话？"
-                  onConfirm={(e) => handleDelete(e as unknown as React.MouseEvent, c.id)}
-                >
-                  <DeleteOutlined
-                    style={{ color: '#999', fontSize: 12 }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Popconfirm>
-              </div>
-            ),
-          }))}
-        />
-      </Sider>
+      {!isMobile && (
+        <Sider
+          width={280}
+          style={{ background: '#fff', borderRight: '1px solid #f0f0f0' }}
+        >
+          {conversationList}
+        </Sider>
+      )}
       <Content style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {isMobile && (
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', display: 'flex', gap: 8 }}>
+            <Button icon={<MenuOutlined />} onClick={() => setSiderOpen(true)} />
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNew}>
+              新建
+            </Button>
+          </div>
+        )}
+        <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
           {messages.length === 0 ? (
             <Empty description="开始新的对话" style={{ marginTop: 120 }} />
           ) : (
@@ -267,9 +290,9 @@ export default function ChatPage() {
           )}
           <div ref={endRef} />
         </div>
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ padding: isMobile ? '12px' : '16px 24px', borderTop: '1px solid #f0f0f0' }}>
           <Input.Search
-            size="large"
+            size={isMobile ? 'middle' : 'large'}
             placeholder="输入您的问题..."
             enterButton="发送"
             value={input}
@@ -279,6 +302,19 @@ export default function ChatPage() {
           />
         </div>
       </Content>
+
+      {isMobile && (
+        <Drawer
+          title="对话列表"
+          placement="left"
+          open={siderOpen}
+          onClose={() => setSiderOpen(false)}
+          bodyStyle={{ padding: 0 }}
+          width={280}
+        >
+          {conversationList}
+        </Drawer>
+      )}
 
       <Modal
         title="升级审批"

@@ -138,8 +138,8 @@ export default function UserManagementPage() {
               options={[
                 { label: '管理员', value: 'admin' },
                 { label: '经理', value: 'manager' },
-                { label: '工程师', value: 'engineer' },
-                { label: '用户', value: 'user' },
+                { label: 'L2 工程师', value: 'l2_engineer' },
+                { label: 'L1 工程师', value: 'l1_engineer' },
               ]}
             />
           </Form.Item>

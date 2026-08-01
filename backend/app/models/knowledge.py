@@ -11,6 +11,7 @@ class KnowledgeDocument(Base, TimestampMixin):
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable=False)
     doc_type = Column(String(50), default="markdown")
+    tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True, index=True)
     metadata_ = Column("metadata", JSON, default=dict)
 
 

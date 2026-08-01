@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { ConfigProvider, Layout, Menu, Button, Space, Typography } from 'antd';
+import { ConfigProvider, Layout, Menu, Button, Space, Typography, Drawer } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
-import { MessageOutlined, BookOutlined, BugOutlined, FileTextOutlined, LogoutOutlined, NodeIndexOutlined, DashboardOutlined, TeamOutlined, ApiOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { useEffect } from 'react';
+import { MessageOutlined, BookOutlined, BugOutlined, FileTextOutlined, LogoutOutlined, NodeIndexOutlined, DashboardOutlined, TeamOutlined, ApiOutlined, ExperimentOutlined, MenuOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { fetchCurrentUser, logout } from './store/authSlice';
+import { useResponsive } from './hooks/useResponsive';
 import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import DiagnosisPage from './pages/DiagnosisPage';
@@ -18,6 +19,18 @@ import KnowledgeDiscoveryPage from './pages/KnowledgeDiscoveryPage';
 
 const { Header, Content } = Layout;
 const { Text } = Typography;
+
+const menuItems = [
+  { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
+  { key: '/chat', icon: <MessageOutlined />, label: '对话' },
+  { key: '/diagnosis', icon: <BugOutlined />, label: '故障诊断' },
+  { key: '/diagnosis/flows', icon: <NodeIndexOutlined />, label: '诊断流程' },
+  { key: '/knowledge', icon: <BookOutlined />, label: '知识库' },
+  { key: '/tickets', icon: <FileTextOutlined />, label: '工单管理' },
+  { key: '/users', icon: <TeamOutlined />, label: '用户管理' },
+  { key: '/integration', icon: <ApiOutlined />, label: '集成管理' },
+  { key: '/discovery', icon: <ExperimentOutlined />, label: '知识发现' },
+];
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, user } = useAppSelector((s) => s.auth);
@@ -40,6 +53,8 @@ function AppLayout() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
+  const isMobile = useResponsive(768);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const currentKey = location.pathname.startsWith('/dashboard')
     ? '/dashboard'
@@ -64,6 +79,11 @@ function AppLayout() {
     navigate('/login');
   };
 
+  const handleMenuClick = (key: string) => {
+    navigate(key);
+    setDrawerOpen(false);
+  };
+
   return (
     <Layout style={{ height: '100vh' }}>
       <Header
@@ -71,33 +91,33 @@ function AppLayout() {
           display: 'flex',
           alignItems: 'center',
           background: '#001529',
-          padding: '0 24px',
+          padding: isMobile ? '0 12px' : '0 24px',
         }}
       >
-        <div style={{ color: '#fff', fontSize: 18, fontWeight: 600, marginRight: 40 }}>
+        {isMobile && (
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setDrawerOpen(true)}
+            style={{ color: '#fff', marginRight: 8 }}
+          />
+        )}
+        <div style={{ color: '#fff', fontSize: isMobile ? 15 : 18, fontWeight: 600, marginRight: isMobile ? 8 : 40, whiteSpace: 'nowrap' }}>
           Tech Support
         </div>
-        <Menu
-          theme="dark"
-          mode="horizontal"
-          selectedKeys={[currentKey]}
-          items={[
-            { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-            { key: '/chat', icon: <MessageOutlined />, label: '对话' },
-            { key: '/diagnosis', icon: <BugOutlined />, label: '故障诊断' },
-            { key: '/diagnosis/flows', icon: <NodeIndexOutlined />, label: '诊断流程' },
-            { key: '/knowledge', icon: <BookOutlined />, label: '知识库' },
-            { key: '/tickets', icon: <FileTextOutlined />, label: '工单管理' },
-            { key: '/users', icon: <TeamOutlined />, label: '用户管理' },
-            { key: '/integration', icon: <ApiOutlined />, label: '集成管理' },
-            { key: '/discovery', icon: <ExperimentOutlined />, label: '知识发现' },
-          ]}
-          onClick={({ key }) => navigate(key)}
-          style={{ flex: 1, minWidth: 0 }}
-        />
+        {!isMobile && (
+          <Menu
+            theme="dark"
+            mode="horizontal"
+            selectedKeys={[currentKey]}
+            items={menuItems}
+            onClick={({ key }) => handleMenuClick(key)}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        )}
         {user && (
-          <Space style={{ marginLeft: 16 }}>
-            <Text style={{ color: '#fff' }}>{user.name}</Text>
+          <Space style={{ marginLeft: 'auto' }}>
+            {!isMobile && <Text style={{ color: '#fff' }}>{user.name}</Text>}
             <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} style={{ color: '#fff' }} />
           </Space>
         )}
@@ -118,6 +138,22 @@ function AppLayout() {
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
       </Content>
+
+      <Drawer
+        title="导航菜单"
+        placement="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        bodyStyle={{ padding: 0 }}
+        width={260}
+      >
+        <Menu
+          mode="inline"
+          selectedKeys={[currentKey]}
+          items={menuItems}
+          onClick={({ key }) => handleMenuClick(key)}
+        />
+      </Drawer>
     </Layout>
   );
 }

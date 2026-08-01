@@ -17,3 +17,4 @@ class Ticket(Base, TimestampMixin):
     conversation_id = Column(
         GUID, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
     )
+    tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True, index=True)

@@ -9,20 +9,20 @@ export interface UserSummary {
 }
 
 export async function listUsers(): Promise<UserSummary[]> {
-  const res = await api.get('/users');
+  const res = await api.get('/auth/users');
   return res.data;
 }
 
 export async function createUser(data: { email: string; name: string; password: string; role: string }): Promise<UserSummary> {
-  const res = await api.post('/users', data);
+  const res = await api.post('/auth/users', data);
   return res.data;
 }
 
 export async function updateUser(id: string, data: { name?: string; role?: string; is_active?: boolean }): Promise<UserSummary> {
-  const res = await api.patch(`/users/${id}`, data);
+  const res = await api.patch(`/auth/users/${id}`, data);
   return res.data;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await api.delete(`/users/${id}`);
+  await api.delete(`/auth/users/${id}`);
 }
