@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from app.db.base import Base
+import app.models  # noqa: F401 — register all models with Base.metadata
 from tests.mock_providers import MockLLMProvider
 
 TEST_DB_DSN = "sqlite:///./test.db"
