@@ -1900,14 +1900,14 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 ## 验证清单 (Phase 1 完成标准)
 
-- [ ] `pytest tests/ -v` 全部通过
-- [ ] `npx vitest run` 前端测试全部通过
-- [ ] `docker compose up -d` 所有服务启动成功
-- [ ] `curl localhost:8000/api/v1/health` 返回 200
-- [ ] 前端聊天界面可发送消息并收到 SSE 回复
-- [ ] 对话历史持久化到 PostgreSQL
-- [ ] 知识库文档上传和搜索功能正常
-- [ ] 测试覆盖 Mock LLM，不依赖外部 API
+- [x] `pytest tests/ -v` 全部通过 (125 tests)
+- [x] `npx vitest run` 前端测试全部通过 (5 tests)
+- [x] `docker compose up -d` 所有服务启动成功
+- [x] `curl localhost:8000/api/v1/health` 返回 200
+- [x] 前端聊天界面可发送消息并收到 SSE 回复
+- [x] 对话历史持久化到 PostgreSQL
+- [x] 知识库文档上传和搜索功能正常
+- [x] 测试覆盖 Mock LLM，不依赖外部 API
 
 ---
 
@@ -2549,16 +2549,595 @@ npx vitest run
 
 ## 验证清单 (Phase 3 完成标准)
 
-- [ ] 已知错误模式可自动匹配并给出诊断建议
-- [ ] 诊断 Agent 通过意图路由正确触发
-- [ ] 诊断 API 端点 POST /api/v1/diagnosis 返回结构化结果
-- [ ] 前端故障诊断页面可输入错误文本并展示诊断结果
-- [ ] 工单 CRUD 完整（创建/查询/更新/删除）
-- [ ] Ticket Agent 可通过对话创建/查询工单
-- [ ] 前端工单管理页面完整
-- [ ] Data Agent 可回答数据统计问题
-- [ ] 诊断 → 升级 → 工单自动流转通畅
-- [ ] 关键节点有人工审批拦截
+- [x] 已知错误模式可自动匹配并给出诊断建议
+- [x] 诊断 Agent 通过意图路由正确触发
+- [x] 诊断 API 端点 POST /api/v1/diagnosis 返回结构化结果
+- [x] 前端故障诊断页面可输入错误文本并展示诊断结果
+- [x] 工单 CRUD 完整（创建/查询/更新/删除）
+- [x] Ticket Agent 可通过对话创建/查询工单
+- [x] 前端工单管理页面完整
+- [x] Data Agent 可回答数据统计问题
+- [x] 诊断 → 升级 → 工单自动流转通畅
+- [x] 关键节点有人工审批拦截
+- [x] `pytest tests/ -v` 全部通过 (125 tests)
+- [x] `npx vitest run` 前端测试全部通过 (5 tests)
+- [x] `ruff check backend/app/` 全部通过
+
+---
+
+## Phase 2 (企业级功能) 任务分解
+
+> **目标**：实现 PRD 中 P2 级别的企业级功能 — 认证授权 (F20)、多租户 (F19)、诊断流程编辑器 (F17)
+> **依赖**：Phase 1 (MVP) + Phase 3 (Agent 体系) 已完成
+
+---
+
+## Task 2.1: User 模型与密码安全 (TDD)
+
+**目标**：建立用户模型，实现密码哈希和验证。
+
+### Step 2.1.1 - RED: 写 User 模型测试
+
+**文件**：`backend/tests/test_db/test_user.py`
+
+```python
+class TestUser:
+    def test_create_user(self, db_session):
+        # 创建 User，验证 id、email、name、role 字段
+        pass
+
+    def test_password_hash_not_plaintext(self, db_session):
+        # password_hash 不等于明文密码
+        pass
+
+    def test_default_role_is_l1_engineer(self, db_session):
+        # 默认 role == "l1_engineer"
+        pass
+
+    def test_optional_fields_default(self, db_session):
+        # tenant_id/assigned_to 可空
+        pass
+```
+
+### Step 2.1.2 - GREEN: 实现 User 模型
+
+**文件**：`backend/app/models/user.py`
+
+```python
+class User(Base, TimestampMixin):
+    __tablename__ = "users"
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), default="l1_engineer")  # admin/manager/l2_engineer/l1_engineer
+    is_active = Column(Boolean, default=True)
+    tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True)
+```
+
+### Step 2.1.3 - RED: 写密码哈希测试
+
+**文件**：`backend/tests/test_services/test_auth.py`
+
+```python
+class TestPasswordHash:
+    def test_hash_password_returns_hash(self):
+        # hash_password("secret") != "secret"
+        pass
+
+    def test_verify_password_correct(self):
+        # verify_password("secret", hash) == True
+        pass
+
+    def test_verify_password_wrong(self):
+        # verify_password("wrong", hash) == False
+        pass
+```
+
+### Step 2.1.4 - GREEN: 实现密码服务
+
+**文件**：`backend/app/services/auth.py`
+
+```python
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str: ...
+def verify_password(plain: str, hashed: str) -> bool: ...
+```
+
+### 验证 Step 2.1.1 - 2.1.4：
+
+```bash
+pytest tests/test_db/test_user.py -v
+pytest tests/test_services/test_auth.py -v -k "PasswordHash"
+```
+
+---
+
+## Task 2.2: JWT 认证 (TDD)
+
+**目标**：实现 JWT token 生成、验证和 OAuth2 密码流。
+
+### Step 2.2.1 - RED: 写 JWT 服务测试
+
+**文件**：`backend/tests/test_services/test_auth.py`
+
+```python
+class TestJWTToken:
+    def test_create_access_token_returns_string(self):
+        # create_access_token({"sub": user_id}) 返回 str
+        pass
+
+    def test_decode_token_valid(self):
+        # decode_token(token) 返回 payload dict
+        pass
+
+    def test_decode_token_expired_raises(self):
+        # 过期 token 抛出异常
+        pass
+
+    def test_decode_token_invalid_raises(self):
+        # 无效 token 抛出异常
+        pass
+```
+
+### Step 2.2.2 - GREEN: 实现 JWT 服务
+
+**文件**：`backend/app/services/auth.py`（扩展）
+
+```python
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from app.core.config import settings
+
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str: ...
+def decode_token(token: str) -> dict: ...
+```
+
+### Step 2.2.3 - RED: 写认证 API 测试
+
+**文件**：`backend/tests/test_api/test_auth.py`
+
+```python
+class TestAuthAPI:
+    def test_login_success(self, client, db_session):
+        # POST /api/v1/auth/login 返回 access_token
+        pass
+
+    def test_login_wrong_password(self, client, db_session):
+        # 错误密码返回 401
+        pass
+
+    def test_login_nonexistent_user(self, client):
+        # 不存在的用户返回 401
+        pass
+
+    def test_me_with_valid_token(self, client, db_session):
+        # GET /api/v1/auth/me + Bearer token 返回用户信息
+        pass
+
+    def test_me_without_token(self, client):
+        # 无 token 返回 401
+        pass
+```
+
+### Step 2.2.4 - GREEN: 实现认证 API
+
+**文件**：`backend/app/api/v1/auth.py`
+
+```python
+router = APIRouter()
+
+@router.post("/auth/login")
+def login(req: dict, session: Session = Depends(get_session)):
+    # 验证用户名密码 → 生成 JWT → 返回 {"access_token": ..., "token_type": "bearer"}
+    ...
+
+@router.get("/auth/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    # 返回当前用户信息
+    ...
+```
+
+### Step 2.2.5 - 实现认证依赖
+
+**文件**：`backend/app/services/auth.py`（扩展）
+
+```python
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> User:
+    # 解码 token → 查询用户 → 返回 User
+    ...
+```
+
+### 验证 Step 2.2.1 - 2.2.5：
+
+```bash
+pytest tests/test_services/test_auth.py -v
+pytest tests/test_api/test_auth.py -v
+```
+
+---
+
+## Task 2.3: RBAC 角色权限控制 (TDD)
+
+**目标**：实现基于角色的 API 访问控制。
+
+### Step 2.3.1 - RED: 写 RBAC 测试
+
+**文件**：`backend/tests/test_api/test_rbac.py`
+
+```python
+class TestRBAC:
+    def test_admin_can_access_all(self, client, db_session):
+        # admin 角色 → 可访问所有端点
+        pass
+
+    def test_l1_engineer_cannot_delete_knowledge(self, client, db_session):
+        # l1_engineer → DELETE /knowledge/documents 返回 403
+        pass
+
+    def test_l2_engineer_can_manage_knowledge(self, client, db_session):
+        # l2_engineer → DELETE /knowledge/documents 返回 200
+        pass
+
+    def test_manager_can_view_users(self, client, db_session):
+        # manager → GET /auth/users 返回 200
+        pass
+
+    def test_l1_engineer_cannot_view_users(self, client, db_session):
+        # l1_engineer → GET /auth/users 返回 403
+        pass
+```
+
+### Step 2.3.2 - GREEN: 实现 RBAC 依赖
+
+**文件**：`backend/app/services/auth.py`（扩展）
+
+```python
+def require_role(*roles: str):
+    """角色权限装饰器工厂"""
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in roles:
+            raise HTTPException(403, "权限不足")
+        return current_user
+    return dependency
+```
+
+### Step 2.3.3 - 应用 RBAC 到现有 API
+
+**文件**：`backend/app/api/v1/knowledge.py`, `ticket.py`, `diagnosis.py`, `chat.py`
+
+- 知识库管理（DELETE）：仅 admin/l2_engineer
+- 工单管理（全操作）：l1_engineer 及以上
+- 诊断 API：所有登录用户
+- 聊天 API：所有登录用户
+
+### 验证 Step 2.3.1 - 2.3.3：
+
+```bash
+pytest tests/test_api/test_rbac.py -v
+```
+
+---
+
+## Task 2.4: 用户管理 API (TDD)
+
+**目标**：实现用户 CRUD 管理接口。
+
+### Step 2.4.1 - RED: 写用户管理 API 测试
+
+**文件**：`backend/tests/test_api/test_user_management.py`
+
+```python
+class TestUserManagement:
+    def test_create_user_admin_only(self, client, db_session):
+        # POST /auth/users → admin 可创建，其他角色 403
+        pass
+
+    def test_list_users_admin_only(self, client, db_session):
+        # GET /auth/users → admin/manager 可查看
+        pass
+
+    def test_update_user_role(self, client, db_session):
+        # PATCH /auth/users/{id} → 更新角色
+        pass
+
+    def test_deactivate_user(self, client, db_session):
+        # PATCH /auth/users/{id} → is_active = False
+        pass
+
+    def test_change_password(self, client, db_session):
+        # POST /auth/change-password → 修改自己的密码
+        pass
+```
+
+### Step 2.4.2 - GREEN: 实现用户管理 API
+
+**文件**：`backend/app/api/v1/auth.py`（扩展）
+
+```python
+@router.post("/auth/users")
+def create_user(req: dict, session: Session = Depends(get_session),
+                current_user: User = Depends(require_role("admin"))):
+    ...
+
+@router.get("/auth/users")
+def list_users(session: Session = Depends(get_session),
+               current_user: User = Depends(require_role("admin", "manager"))):
+    ...
+
+@router.patch("/auth/users/{user_id}")
+def update_user(user_id: str, req: dict, session: Session = Depends(get_session),
+                current_user: User = Depends(require_role("admin"))):
+    ...
+
+@router.post("/auth/change-password")
+def change_password(req: dict, session: Session = Depends(get_session),
+                    current_user: User = Depends(get_current_user)):
+    ...
+```
+
+### 验证 Step 2.4.1 - 2.4.2：
+
+```bash
+pytest tests/test_api/test_user_management.py -v
+```
+
+---
+
+## Task 2.5: 前端认证集成
+
+**目标**：前端实现登录页面、认证状态管理和路由守卫。
+
+### Step 2.5.1 - 添加认证状态到 Redux
+
+**文件**：`frontend/src/store/authSlice.ts`
+
+```typescript
+interface AuthState {
+  token: string | null;
+  user: { id: string; email: string; name: string; role: string } | null;
+  loading: boolean;
+}
+
+export const login = createAsyncThunk('auth/login', async ({ email, password }) => {
+  const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+  localStorage.setItem('token', res.data.access_token);
+  return res.data;
+});
+
+export const fetchCurrentUser = createAsyncThunk('auth/me', async () => {
+  const token = localStorage.getItem('token');
+  const res = await axios.get(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+});
+```
+
+### Step 2.5.2 - 登录页面
+
+**文件**：`frontend/src/pages/LoginPage.tsx`
+
+- 邮箱 + 密码表单
+- 登录失败提示
+- 登录成功跳转到 /chat
+
+### Step 2.5.3 - 路由守卫
+
+**文件**：`frontend/src/App.tsx`（重构）
+
+```tsx
+function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
+  const { token, user } = useSelector((s: RootState) => s.auth);
+  if (!token) return <Navigate to="/login" />;
+  if (roles && user && !roles.includes(user.role)) return <Navigate to="/chat" />;
+  return <>{children}</>;
+}
+```
+
+### Step 2.5.4 - 前端 Store 测试
+
+**文件**：`frontend/src/__tests__/authSlice.test.ts`
+
+- 测试 login/logout 状态变更
+- 测试 token 持久化
+
+### 验证 Step 2.5.1 - 2.5.4：
+
+```bash
+cd frontend && npx vitest run
+cd frontend && npm run build
+```
+
+---
+
+## Task 2.6: 多租户基础 (TDD)
+
+**目标**：实现租户模型和数据隔离。
+
+### Step 2.6.1 - RED: 写 Tenant 模型测试
+
+**文件**：`backend/tests/test_db/test_tenant.py`
+
+```python
+class TestTenant:
+    def test_create_tenant(self, db_session):
+        # 创建 Tenant，验证 id、name、slug
+        pass
+
+    def test_tenant_default_active(self, db_session):
+        # 默认 is_active == True
+        pass
+```
+
+### Step 2.6.2 - GREEN: 实现 Tenant 模型
+
+**文件**：`backend/app/models/tenant.py`
+
+```python
+class Tenant(Base, TimestampMixin):
+    __tablename__ = "tenants"
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
+    is_active = Column(Boolean, default=True)
+    settings = Column(JSON, default=dict)
+```
+
+### Step 2.6.3 - 添加 tenant_id 到现有模型
+
+**文件**：`backend/app/models/conversation.py`, `knowledge.py`, `ticket.py`
+
+- 添加 `tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True)`
+- 默认 nullable=True 兼容现有数据
+
+### Step 2.6.4 - 实现租户隔离查询
+
+**文件**：`backend/app/services/tenant.py`
+
+```python
+def get_tenant_filter(user: User) -> dict:
+    """返回当前用户的租户过滤条件"""
+    if user.tenant_id:
+        return {"tenant_id": user.tenant_id}
+    return {}
+```
+
+### 验证 Step 2.6.1 - 2.6.4：
+
+```bash
+pytest tests/test_db/test_tenant.py -v
+```
+
+---
+
+## Task 2.7: 诊断流程编辑器 (TDD)
+
+**目标**：实现可视化的诊断流程定义和管理。
+
+### Step 2.7.1 - RED: 写 DiagnosisFlow 模型测试
+
+**文件**：`backend/tests/test_db/test_diagnosis_flow.py`
+
+```python
+class TestDiagnosisFlow:
+    def test_create_flow(self, db_session):
+        # 创建 DiagnosisFlow，验证 name、steps、version
+        pass
+
+    def test_flow_default_version(self, db_session):
+        # 默认 version == 1
+        pass
+
+    def test_flow_steps_json(self, db_session):
+        # steps 是 JSON 数组
+        pass
+```
+
+### Step 2.7.2 - GREEN: 实现 DiagnosisFlow 模型
+
+**文件**：`backend/app/models/diagnosis_flow.py`
+
+```python
+class DiagnosisFlow(Base, TimestampMixin):
+    __tablename__ = "diagnosis_flows"
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    steps = Column(JSON, nullable=False)  # [{id, title, description, conditions, next_step}]
+    version = Column(Integer, default=1)
+    is_active = Column(Boolean, default=True)
+    tenant_id = Column(GUID, ForeignKey("tenants.id"), nullable=True)
+```
+
+### Step 2.7.3 - RED: 写流程 API 测试
+
+**文件**：`backend/tests/test_api/test_diagnosis_flow.py`
+
+```python
+class TestDiagnosisFlowAPI:
+    def test_create_flow(self, client, db_session):
+        pass
+
+    def test_list_flows(self, client, db_session):
+        pass
+
+    def test_get_flow(self, client, db_session):
+        pass
+
+    def test_update_flow(self, client, db_session):
+        pass
+
+    def test_delete_flow(self, client, db_session):
+        pass
+
+    def test_activate_flow(self, client, db_session):
+        pass
+```
+
+### Step 2.7.4 - GREEN: 实现流程 API
+
+**文件**：`backend/app/api/v1/diagnosis_flow.py`
+
+```python
+router = APIRouter()
+
+@router.post("/diagnosis/flows")      # 创建流程
+@router.get("/diagnosis/flows")        # 列表
+@router.get("/diagnosis/flows/{id}")   # 详情
+@router.patch("/diagnosis/flows/{id}") # 更新
+@router.delete("/diagnosis/flows/{id}")# 删除
+@router.post("/diagnosis/flows/{id}/activate")  # 激活
+```
+
+### Step 2.7.5 - 前端流程编辑器页面
+
+**文件**：`frontend/src/pages/DiagnosisFlowPage.tsx`
+
+- 流程列表（Table）
+- 创建/编辑流程（Modal + Steps 组件）
+- 步骤编辑器（动态表单：步骤标题、描述、条件、下一步）
+- 激活/停用流程
+
+### 验证 Step 2.7.1 - 2.7.5：
+
+```bash
+pytest tests/test_db/test_diagnosis_flow.py -v
+pytest tests/test_api/test_diagnosis_flow.py -v
+npx vitest run
+```
+
+---
+
+## Phase 2 任务依赖关系
+
+```
+2.1 User 模型 + 密码安全
+  │
+  ├── 2.2 JWT 认证
+  │    └── 2.3 RBAC 角色权限
+  │         └── 2.4 用户管理 API
+  │              └── 2.5 前端认证集成
+  │
+  ├── 2.6 多租户基础
+  │
+  └── 2.7 诊断流程编辑器
+```
+
+## 验证清单 (Phase 2 完成标准)
+
+- [ ] 用户可注册/登录，密码使用 bcrypt 哈希
+- [ ] JWT token 认证，所有 API 需 Bearer token
+- [ ] RBAC 角色权限：admin/manager/l2_engineer/l1_engineer
+- [ ] 用户管理 API（仅 admin 可操作）
+- [ ] 前端登录页面 + 路由守卫
+- [ ] 多租户模型 + 数据隔离
+- [ ] 诊断流程编辑器（CRUD + 激活）
 - [ ] `pytest tests/ -v` 全部通过
 - [ ] `npx vitest run` 前端测试全部通过
 - [ ] `ruff check backend/app/` 全部通过
