@@ -1,17 +1,40 @@
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { ConfigProvider, Layout, Menu } from 'antd';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { ConfigProvider, Layout, Menu, Button, Space, Typography } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
-import { MessageOutlined, BookOutlined, BugOutlined, FileTextOutlined } from '@ant-design/icons';
+import { MessageOutlined, BookOutlined, BugOutlined, FileTextOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { fetchCurrentUser, logout } from './store/authSlice';
 import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import DiagnosisPage from './pages/DiagnosisPage';
 import TicketPage from './pages/TicketPage';
+import LoginPage from './pages/LoginPage';
 
 const { Header, Content } = Layout;
+const { Text } = Typography;
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (token && !user) {
+      dispatch(fetchCurrentUser());
+    }
+  }, [token, user, dispatch]);
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
 
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((s) => s.auth);
 
   const currentKey = location.pathname.startsWith('/knowledge')
     ? '/knowledge'
@@ -20,6 +43,11 @@ function AppLayout() {
       : location.pathname.startsWith('/tickets')
         ? '/tickets'
         : '/chat';
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <Layout style={{ height: '100vh' }}>
@@ -47,15 +75,22 @@ function AppLayout() {
           onClick={({ key }) => navigate(key)}
           style={{ flex: 1, minWidth: 0 }}
         />
+        {user && (
+          <Space style={{ marginLeft: 16 }}>
+            <Text style={{ color: '#fff' }}>{user.name}</Text>
+            <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} style={{ color: '#fff' }} />
+          </Space>
+        )}
       </Header>
       <Content style={{ background: '#fff' }}>
         <Routes>
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat/:id" element={<ChatPage />} />
-          <Route path="/diagnosis" element={<DiagnosisPage />} />
-          <Route path="/knowledge" element={<KnowledgeBasePage />} />
-          <Route path="/tickets" element={<TicketPage />} />
-          <Route path="*" element={<ChatPage />} />
+          <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+          <Route path="/chat/:id" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+          <Route path="/diagnosis" element={<ProtectedRoute><DiagnosisPage /></ProtectedRoute>} />
+          <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBasePage /></ProtectedRoute>} />
+          <Route path="/tickets" element={<ProtectedRoute><TicketPage /></ProtectedRoute>} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
       </Content>
     </Layout>
