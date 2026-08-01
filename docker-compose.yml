@@ -24,6 +24,9 @@ services:
     environment:
       DB_DSN: postgresql+asyncpg://postgres:postgres@postgres:5432/tech_support
       LLM_API_KEY: ${LLM_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
     depends_on:
       postgres:
         condition: service_healthy

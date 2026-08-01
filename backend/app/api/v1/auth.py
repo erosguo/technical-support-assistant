@@ -182,3 +182,21 @@ def change_password(
     current_user.password_hash = hash_password(req.new_password)
     session.commit()
     return None
+
+
+@router.delete("/auth/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    if str(current_user.id) == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    session.delete(user)
+    session.commit()
+    return None
